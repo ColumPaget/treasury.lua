@@ -229,7 +229,7 @@ end
 
 
 function TreasuryInit()
-local str
+local str=""
 
 
 --setup config
@@ -237,7 +237,11 @@ config=ConfigInit()
 
 --configure settings for this process. This will involve stuff like disabling
 --coredumps to prevent leaving sensitive data on disk
-str="openlog=treasury.lua "
+
+--openlog here causes strange issues in syslog. I think it's down to lua garbage collection,
+--but haven't figured it out yet
+--str="openlog=treasury.lua "
+
 if config.coredumps==false then str=str.."coredumps=0 " end
 if config.mlock==true then str=str.."mlock " end
 if config.resist_strace==true then str=str.."resist_strace " end
