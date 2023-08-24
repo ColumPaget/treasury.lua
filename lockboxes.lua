@@ -114,7 +114,7 @@ if box == nil then box=self:new(boxname) end
 if box:load() == true
 then
 box:add(key, value, notes)
-box:save()
+box:save(true)
 return true
 
 end

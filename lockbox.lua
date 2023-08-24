@@ -42,7 +42,7 @@ end
 end
 
 
-lockbox.save=function(self)
+lockbox.save=function(self, do_sync)
 local str, S, key, item
 
 if strutil.strlen(self.password) == 0 then self.password=QueryPassword("Password for "..self.name..": ~>") end
@@ -69,8 +69,7 @@ then
 
 	self:saveencrypted(str, S)
 	S:close()
-
-	sync:send(self)
+	if dosync == true then sync:send(self) end
 end
 
 end

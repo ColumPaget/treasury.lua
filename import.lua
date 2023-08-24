@@ -160,5 +160,5 @@ else self:import_csv(box, doc)
 end
 
 print("IMPORTED: " .. tostring(self.items_imported) .. " lines")
-box:save()
+box:save(true)
 end

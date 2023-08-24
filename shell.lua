@@ -88,15 +88,15 @@ elseif cmd=="clip" then GetDataFromBox(box, toks:remaining(), false, true, false
 elseif cmd=="add" or cmd=="set"
 then
  box:add(toks:next(), toks:next(), toks:remaining())
- box:save()
+ box:save(true)
 elseif cmd=="enter"
 then
     key,value,notes=self:enter_item(box, toks:remaining())
     box:add(key, value, notes)
-    box:save()
+    box:save(true)
 elseif cmd=="del" or cmd=="rm" or cmd=="remove" or cmd=="delete" then
  box:remove(toks:next())
- box:save()
+ box:save(true)
 elseif cmd=="list" or cmd=="ls" then self:list(box, nil)
 elseif cmd=="find" then self:list(box, string.lower(toks:next()))
 elseif cmd=="help"
