@@ -182,6 +182,38 @@ end
 
 
 
+function DeduceFileTypeFromPath(path)
+local str
+
+str=filesys.extn(path)
+if strutil.strlen(str) ==0 then return("ssl.csv") end
+
+if str==".csv" then return("csv") end
+if str==".xml" then return("xml") end
+if str==".json" then return("json") end
+if str==".zcsv" then return("zip.csv") end
+if str==".zxml" then return("zip.xml") end
+if str==".zjson" then return("zip.json") end
+if str==".zipcsv" then return("zip.csv") end
+if str==".zipxml" then return("zip.xml") end
+if str==".zipjson" then return("zip.json") end
+if str==".7zcsv" then return("7zip.csv") end
+if str==".7zxml" then return("7zip.xml") end
+if str==".7zjson" then return("7zip.json") end
+if str==".7zipcsv" then return("7zip.csv") end
+if str==".7zipxml" then return("7zip.xml") end
+if str==".7zipjson" then return("7zip.json") end
+if str==".scsv" then return("ssl.csv") end
+if str==".sxml" then return("ssl.xml") end
+if str==".sjson" then return("ssl.json") end
+if str==".sslcsv" then return("ssl.csv") end
+if str==".sslxml" then return("ssl.xml") end
+if str==".ssljson" then return("ssl.json") end
+
+return(string.sub(extn, 2))
+end
+
+
 function ScrubFile(path)
 local S, str, len
 
@@ -247,7 +279,7 @@ end
 function DisplayQRCode(value)
 local S, str, path, cmd
 
-path="/tmp/qrcode.png"
+path="/tmp/.treasury_qrcode.png"
 
 cmd=FindCmd(config:get("qr_cmd"))
 if cmd ~= nil
@@ -708,7 +740,7 @@ end
 end
 
 
-lockbox.save=function(self)
+lockbox.save=function(self, do_sync)
 local str, S, key, item
 
 if strutil.strlen(self.password) == 0 then self.password=QueryPassword("Password for "..self.name..": ~>") end
@@ -735,8 +767,7 @@ then
 
 	self:saveencrypted(str, S)
 	S:close()
-
-	sync:send(self)
+	if dosync == true then sync:send(self) end
 end
 
 end
@@ -1074,7 +1105,7 @@ if box == nil then box=self:new(boxname) end
 if box:load() == true
 then
 box:add(key, value, notes)
-box:save()
+box:save(true)
 return true
 
 end
@@ -1298,7 +1329,7 @@ else self:import_csv(box, doc)
 end
 
 print("IMPORTED: " .. tostring(self.items_imported) .. " lines")
-box:save()
+box:save(true)
 end
 
 exporter={}
@@ -1343,7 +1374,7 @@ exporter.json_item=function(self, name, value)
 return "\"" .. name .."\": \"" .. value .."\",\n"
 end
 
-exporter.json=function(self, item, Out)
+exporter.json=function(self, items, Out)
 local str, key, item
 
 if Out==nil then Out=stream.STREAM("stdout:") end
@@ -1364,7 +1395,7 @@ local str, password, Proc, PtyS
 password=QueryPassword("password for exported zip file: ")
 
 str="zip " .. export_path .. " -e -"
-Proc=process.PROCESS(str, "ptystream")
+Proc=process.PROCESS(str, "rw ptystream ptystderr")
 
 PtyS=Proc:get_pty()
 str=PtyS:readto(':')
@@ -1421,78 +1452,13 @@ if ftype=="ssl" then
 Proc=self:open_sslencrypt(path)
 elseif ftype=="7zip" then 
 Proc=self:open7zip(path)
-else
+elseif ftype=="zip" then 
 Proc=self:openzip(path)
 end
 
 return Proc
 end
 
-
-
-
-exporter.zipcsv=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:csv(items, S)
-S:commit()
-process.sleep(1)
-S:close()
-Proc:wait_exit()
-
-end
-
-exporter.zipxml=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:xml(items, S)
-end
-
-
-exporter.zipjson=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:json(items, S)
-end
-
-
-
-
-exporter.sslcsv=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:csv(items, S)
-S:commit()
-process.sleep(1)
-S:close()
-Proc:wait_exit()
-
-end
-
-exporter.sslxml=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:xml(items, S)
-end
-
-
-exporter.ssljson=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:json(items, S)
-end
 
 
 
@@ -1510,6 +1476,30 @@ end
 
 return selected
 end
+
+
+exporter.export_filetype=function(self, export_type, package_type, items, path)
+local Proc, S
+
+if strutil.strlen(package_type) > 0 
+then
+Proc=self:open_container(package_type, path)
+S=Proc:get_stream()
+else
+S=stream.STREAM(path, "w")
+end
+
+if export_type == "csv" then self:csv(items, S)
+elseif export_type == "xml" then self:xml(items, S)
+elseif export_type == "json" then self:json(items, S)
+end
+
+S:commit()
+process.sleep(1)
+S:close()
+--if Proc ~= nil then Proc:wait_exit() end
+end
+
 
 
 
@@ -1537,18 +1527,18 @@ end
 
 
 print("export: type="..cmd.import_type.." to "..cmd.path)
-if cmd.import_type == "csv" then exporter:csv(items, cmd.path) 
-elseif cmd.import_type == "xml" then exporter:xml(items, cmd.path) 
-elseif cmd.import_type == "json" then exporter:json(items, cmd.path) 
-elseif cmd.import_type == "zip.csv" then exporter:zipcsv("zip", cmd.path, items) 
-elseif cmd.import_type == "zip.xml" then exporter:zipxml("zip", cmd.path, items) 
-elseif cmd.import_type == "zip.json" then exporter:zipjson("zip", cmd.path, items) 
-elseif cmd.import_type == "7zip.csv" then exporter:zipcsv("7zip", cmd.path, items) 
-elseif cmd.import_type == "7zip.xml" then exporter:zipxml("7zip", cmd.path, items) 
-elseif cmd.import_type == "7zip.json" then exporter:zipjson("7zip", cmd.path, items) 
-elseif cmd.import_type == "ssl.csv" then exporter:sslcsv("ssl", cmd.path, items) 
-elseif cmd.import_type == "ssl.xml" then exporter:sslxml("ssl", cmd.path, items) 
-elseif cmd.import_type == "ssl.json" then exporter:ssljson("ssl", cmd.path, items) 
+if cmd.import_type == "csv" then exporter:export_filetype("csv", "", items, cmd.path) 
+elseif cmd.import_type == "xml" then exporter:export_filetype("xml", "", items, cmd.path) 
+elseif cmd.import_type == "json" then exporter:export_filetype("json", "", items, cmd.path) 
+elseif cmd.import_type == "zip.csv" then exporter:export_filetype("csv", "zip", items, cmd.path) 
+elseif cmd.import_type == "zip.xml" then exporter:export_filetype("xml", "zip", items, cmd.path) 
+elseif cmd.import_type == "zip.json" then exporter:export_filetype("json", "zip", items, cmd.path) 
+elseif cmd.import_type == "7zip.csv" then exporter:export_filetype("csv", "7zip", items, cmd.path) 
+elseif cmd.import_type == "7zip.xml" then exporter:export_filetype("xml", "7zip", items, cmd.path) 
+elseif cmd.import_type == "7zip.json" then exporter:export_filetype("json", "7zip", items, cmd.path) 
+elseif cmd.import_type == "ssl.csv" then exporter:export_filetype("csv", "ssl", items, cmd.path) 
+elseif cmd.import_type == "ssl.xml" then exporter:export_filetype("xml", "ssl", items, cmd.path) 
+elseif cmd.import_type == "ssl.json" then exporter:export_filetype("json", "ssl", items, cmd.path) 
 end
 
 end
@@ -1587,9 +1577,15 @@ do
 		elseif value=="-7zipcsv" then cmd.import_type="7zip.csv"
 		elseif value=="-7zipxml" then cmd.import_type="7zip.xml"
 		elseif value=="-7zipjson" then cmd.import_type="7zip.json"
+		elseif value=="-7zcsv" then cmd.import_type="7zip.csv"
+		elseif value=="-7zxml" then cmd.import_type="7zip.xml"
+		elseif value=="-7zjson" then cmd.import_type="7zip.json"
 		elseif value=="-sslcsv" then cmd.import_type="ssl.csv"
 		elseif value=="-sslxml" then cmd.import_type="ssl.xml"
 		elseif value=="-ssljson" then cmd.import_type="ssl.json"
+		elseif value=="-scsv" then cmd.import_type="ssl.csv"
+		elseif value=="-sxml" then cmd.import_type="ssl.xml"
+		elseif value=="-sjson" then cmd.import_type="ssl.json"
 		elseif value=="-g" or value=="-generate" then cmd.generate=32
 		elseif value=="-glen" then cmd.generate=tonumber(args[i+1]); args[i+1]=""
 		elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
@@ -1611,6 +1607,8 @@ do
 end
 
 strutil.trim(cmd.value)
+
+if cmd.type=="export" and strutil.strlen(cmd.import_type) == 0 then cmd.import_type=DeduceFileTypeFromPath(cmd.path) end
 
 return(cmd)
 end
@@ -1704,15 +1702,15 @@ elseif cmd=="clip" then GetDataFromBox(box, toks:remaining(), false, true, false
 elseif cmd=="add" or cmd=="set"
 then
  box:add(toks:next(), toks:next(), toks:remaining())
- box:save()
+ box:save(true)
 elseif cmd=="enter"
 then
     key,value,notes=self:enter_item(box, toks:remaining())
     box:add(key, value, notes)
-    box:save()
+    box:save(true)
 elseif cmd=="del" or cmd=="rm" or cmd=="remove" or cmd=="delete" then
  box:remove(toks:next())
- box:save()
+ box:save(true)
 elseif cmd=="list" or cmd=="ls" then self:list(box, nil)
 elseif cmd=="find" then self:list(box, string.lower(toks:next()))
 elseif cmd=="help"
@@ -1780,15 +1778,44 @@ print("   add [lockbox] [key] -g                  generate a 32bit random string
 print("   add [lockbox] [key] -generate           generate a 32bit random string, and add it to a lockbox")
 print("   add [lockbox] [key] -glen <len>         generate a random string, and add it to a lockbox")
 print("   del [lockbox] [key]                     remove a key/value pair from a lockbox")
+print("   rm  [lockbox] [key]                     remove a key/value pair from a lockbox")
 print("   get [lockbox] [key]                     get the value matching 'key' in a lockbox")
+print("   get [lockbox] [key] -qr                 get the value matching 'key' in a lockbox, and display as qr code")
 print("   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard")
 print("   get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command")
-print("   find [lockbox] [search pattern]         find key/value pairs matching 'search pattern'")
-print("   import [lockbox] [path]                 import key/value pairs from a file")
-print("   export [lockbox] [path]                 export key/value pairs to a file")
+print("   entry [lockbox]                         enter 'data entry' mode for localbox")
+print("   shell [lockbox]                         enter 'shell' mode for localbox")
 print("   sync [path]                             sync key/value pairs from a lockbox file")
 print("   chpw [box]                              change password for a lockbox")
+print("   find [lockbox] [search pattern]         find key/value pairs matching 'search pattern'")
+print("   sync [path]                             sync key/value pairs from a lockbox file")
+print("   import [lockbox] [path]                 import key/value pairs from a file")
+print("   export [lockbox] [path]                 export key/value pairs to a file")
+print("   export [lockbox] [path] -csv            export key/value pairs from a csv file")
+print("   export [lockbox] [path] -xml            export key/value pairs from a xml file")
+print("   export [lockbox] [path] -json           export key/value pairs from a json file")
+print("   export [lockbox] [path] -zcsv           export key/value pairs from a pkzipped csv file (with password)")
+print("   export [lockbox] [path] -zxml           export key/value pairs from a pkzipped xml file (with password)")
+print("   export [lockbox] [path] -zjson          export key/value pairs from a pkzipped json file (with password)")
+print("   export [lockbox] [path] -7zcsv          export key/value pairs from a 7zipped csv file (with password)")
+print("   export [lockbox] [path] -7zxml          export key/value pairs from a 7zipped xml file (with password)")
+print("   export [lockbox] [path] -7zjson         export key/value pairs from a 7zipped json file (with password)")
+print("   show-config                             print out application config")
+print("   config-set [name] [value]               change a config value")
+print("   --help                                  print help")
+print("   -help                                   print help")
+print("   help                                    print help")
+print("   -?                                      print help")
+
+print("")
+print("The type of file for import and export can be set using the -csv, -xml, -json, -zcsv, -zxml, -zjson, -7zcsv, -7zxml, -7zjson, -scsv, -sxml, -sjson options. Without these the import and export commands will try to guess the filetype.")
+print("The import command examines the file at [path] and can open csv, xml and json files, including those that have been packaged/encrypted with pkzip/infozip, 7zip, or simply encrypted with openssl.");
+print("The export command uses the extension of the supplied filename to guess the filetype. Thus extensions should be in the form .csv, .zcsv, .7zscv .scsv");
 end
+
+
+
+-- elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
 Mode="cli"
 
 
@@ -2028,7 +2055,11 @@ config=ConfigInit()
 
 --configure settings for this process. This will involve stuff like disabling
 --coredumps to prevent leaving sensitive data on disk
+
+--openlog here causes strange issues in syslog. I think it's down to lua garbage collection,
+--but haven't figured it out yet
 --str="openlog=treasury.lua "
+
 if config.coredumps==false then str=str.."coredumps=0 " end
 if config.mlock==true then str=str.."mlock " end
 if config.resist_strace==true then str=str.."resist_strace " end

@@ -41,7 +41,7 @@ exporter.json_item=function(self, name, value)
 return "\"" .. name .."\": \"" .. value .."\",\n"
 end
 
-exporter.json=function(self, item, Out)
+exporter.json=function(self, items, Out)
 local str, key, item
 
 if Out==nil then Out=stream.STREAM("stdout:") end
@@ -62,7 +62,7 @@ local str, password, Proc, PtyS
 password=QueryPassword("password for exported zip file: ")
 
 str="zip " .. export_path .. " -e -"
-Proc=process.PROCESS(str, "ptystream")
+Proc=process.PROCESS(str, "rw ptystream ptystderr")
 
 PtyS=Proc:get_pty()
 str=PtyS:readto(':')
@@ -119,78 +119,13 @@ if ftype=="ssl" then
 Proc=self:open_sslencrypt(path)
 elseif ftype=="7zip" then 
 Proc=self:open7zip(path)
-else
+elseif ftype=="zip" then 
 Proc=self:openzip(path)
 end
 
 return Proc
 end
 
-
-
-
-exporter.zipcsv=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:csv(items, S)
-S:commit()
-process.sleep(1)
-S:close()
-Proc:wait_exit()
-
-end
-
-exporter.zipxml=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:xml(items, S)
-end
-
-
-exporter.zipjson=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:json(items, S)
-end
-
-
-
-
-exporter.sslcsv=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:csv(items, S)
-S:commit()
-process.sleep(1)
-S:close()
-Proc:wait_exit()
-
-end
-
-exporter.sslxml=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:xml(items, S)
-end
-
-
-exporter.ssljson=function(self, ftype, path, items)
-local Proc, S
-
-Proc=self:open_container(ftype, path)
-S=Proc:get_stream()
-self:json(items, S)
-end
 
 
 
@@ -208,6 +143,30 @@ end
 
 return selected
 end
+
+
+exporter.export_filetype=function(self, export_type, package_type, items, path)
+local Proc, S
+
+if strutil.strlen(package_type) > 0 
+then
+Proc=self:open_container(package_type, path)
+S=Proc:get_stream()
+else
+S=stream.STREAM(path, "w")
+end
+
+if export_type == "csv" then self:csv(items, S)
+elseif export_type == "xml" then self:xml(items, S)
+elseif export_type == "json" then self:json(items, S)
+end
+
+S:commit()
+process.sleep(1)
+S:close()
+--if Proc ~= nil then Proc:wait_exit() end
+end
+
 
 
 
@@ -235,18 +194,18 @@ end
 
 
 print("export: type="..cmd.import_type.." to "..cmd.path)
-if cmd.import_type == "csv" then exporter:csv(items, cmd.path) 
-elseif cmd.import_type == "xml" then exporter:xml(items, cmd.path) 
-elseif cmd.import_type == "json" then exporter:json(items, cmd.path) 
-elseif cmd.import_type == "zip.csv" then exporter:zipcsv("zip", cmd.path, items) 
-elseif cmd.import_type == "zip.xml" then exporter:zipxml("zip", cmd.path, items) 
-elseif cmd.import_type == "zip.json" then exporter:zipjson("zip", cmd.path, items) 
-elseif cmd.import_type == "7zip.csv" then exporter:zipcsv("7zip", cmd.path, items) 
-elseif cmd.import_type == "7zip.xml" then exporter:zipxml("7zip", cmd.path, items) 
-elseif cmd.import_type == "7zip.json" then exporter:zipjson("7zip", cmd.path, items) 
-elseif cmd.import_type == "ssl.csv" then exporter:sslcsv("ssl", cmd.path, items) 
-elseif cmd.import_type == "ssl.xml" then exporter:sslxml("ssl", cmd.path, items) 
-elseif cmd.import_type == "ssl.json" then exporter:ssljson("ssl", cmd.path, items) 
+if cmd.import_type == "csv" then exporter:export_filetype("csv", "", items, cmd.path) 
+elseif cmd.import_type == "xml" then exporter:export_filetype("xml", "", items, cmd.path) 
+elseif cmd.import_type == "json" then exporter:export_filetype("json", "", items, cmd.path) 
+elseif cmd.import_type == "zip.csv" then exporter:export_filetype("csv", "zip", items, cmd.path) 
+elseif cmd.import_type == "zip.xml" then exporter:export_filetype("xml", "zip", items, cmd.path) 
+elseif cmd.import_type == "zip.json" then exporter:export_filetype("json", "zip", items, cmd.path) 
+elseif cmd.import_type == "7zip.csv" then exporter:export_filetype("csv", "7zip", items, cmd.path) 
+elseif cmd.import_type == "7zip.xml" then exporter:export_filetype("xml", "7zip", items, cmd.path) 
+elseif cmd.import_type == "7zip.json" then exporter:export_filetype("json", "7zip", items, cmd.path) 
+elseif cmd.import_type == "ssl.csv" then exporter:export_filetype("csv", "ssl", items, cmd.path) 
+elseif cmd.import_type == "ssl.xml" then exporter:export_filetype("xml", "ssl", items, cmd.path) 
+elseif cmd.import_type == "ssl.json" then exporter:export_filetype("json", "ssl", items, cmd.path) 
 end
 
 end

@@ -2,7 +2,7 @@
 function DisplayQRCode(value)
 local S, str, path, cmd
 
-path="/tmp/qrcode.png"
+path="/tmp/.treasury_qrcode.png"
 
 cmd=FindCmd(config:get("qr_cmd"))
 if cmd ~= nil

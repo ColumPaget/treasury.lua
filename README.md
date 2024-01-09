@@ -46,6 +46,15 @@ actions:
    shell [lockbox]                         enter 'shell' mode for localbox
    import [lockbox] [path]                 import key/value pairs from a file
    export [lockbox] [path]                 export key/value pairs to a file
+   export [lockbox] [path] -csv            export key/value pairs from a csv file
+   export [lockbox] [path] -xml            export key/value pairs from a xml file
+   export [lockbox] [path] -json           export key/value pairs from a json file
+   export [lockbox] [path] -zcsv           export key/value pairs from a pkzipped csv file (with password)
+   export [lockbox] [path] -zxml           export key/value pairs from a pkzipped xml file (with password)
+   export [lockbox] [path] -zjson          export key/value pairs from a pkzipped json file (with password)
+   export [lockbox] [path] -7zcsv          export key/value pairs from a 7zipped csv file (with password)
+   export [lockbox] [path] -7zxml          export key/value pairs from a 7zipped xml file (with password)
+   export [lockbox] [path] -7zjson         export key/value pairs from a 7zipped json file (with password)
    sync [path]                             sync key/value pairs from a lockbox file
    show-config                             print out application config
    config-set [name] [value]               change a config value
@@ -56,14 +65,17 @@ actions:
 ```
 
 
+
 ## Settings
 
 the 'show-config' and 'config-set' commands allow manipulation of a number of application settings that are stored in `~/.config/treasury/treasury.conf`. At current these settings are:
 
 
 ```
-clip_cmd            xsel -i -p -b,xclip -selection clipboard
+clip_cmd            xsel -i -p -b,xclip -selection clipboard,pbcopy
 qr_cmd              qrencode -o
+iview_cmd           imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g
+edit_cmd            vim,vi,pico,nano
 syslog              y
 digest              sha256
 algo                aes-256-cbc
@@ -73,9 +85,14 @@ resist_strace       n
 scrub_files         n
 ```
 
-The 'clip_cmd' setting is a comma seperated list of commands that can be used to set the system clipboard. It is assumed these commands take input on stdin. treasury.lua will use the first application in this list that it finds installed on the system.
 
-The 'qr_cmd' setting is a comma seperated list of commands that can be used to generate qr codes. It is assumed these commands take input on stdin. treasury.lua will use the first application in this list that it finds installed on the system.
+The 'clip_cmd' setting is a comma separated list of commands that can be used to set the system clipboard. It is assumed these commands take input on stdin. treasury.lua will use the first application in this list that it finds installed on the system.
+
+The 'qr_cmd' setting is a comma separated list of commands that can be used to generate qr codes. It is assumed these commands take input on stdin. treasury.lua will use the first application in this list that it finds installed on the system.
+
+The 'iview_cmd' settings is a comma separated list of image viewer commands to use when displaying qr codes.
+
+The 'edit_cmd' settings is a comma separated list of text editor commands to use when editing large secrets.
 
 The 'syslog' setting determines whether messages should be sent to the system log when an incorrect password is entered when someone attempts to access a lockbox. Values are 'y' and 'n' for yes and no.
 
@@ -90,6 +107,54 @@ The 'mlock' setting determines whether treasury.lua should attempt to lock itsel
 The 'resist_strace' setting configures treasury.lua to disallow stracing of the app. It will exit if it is already being straced. There is a race condition here where a skilled attacker could alter treasury.lua's behavior to allow stracing, which is why this is called 'resist' rather than 'deny'. By default this is off ('n').
 
 The 'scrub_files' feature overwrites deleted files with random data. This was once held to be vital to prevent data recovery, however in the modern age we have complex filesystems that may well keep backups of the original data, and we have SSD drivers, which suffer 'write wearing' meaning that repeated writes gradually wear them out, so this feature is not considered important anymore. Defaults to 'off' ('n').
+
+## Import/Export
+
+treasury.lua can import data from files in csv, xml and json format. Each of these file formats and also be wrapped with zip, 7zip, or openssl encryption. The purpose of these wrappers is to provide a means of moving data between systems in an encrypted format, even if it's the relatively weak encryption of pkzip/info-zip.
+
+For CSV files the default format is: 
+
+```
+key, value, notes, updated time
+```
+
+For XML files the default format is:
+
+```
+<item>
+<name>key</name>
+<value>value</value>
+<notes>extra notes</notes>
+<updated>updated timestamp</updated>
+</item>
+
+```
+
+for JSON files the default format is:
+
+```
+{
+"name": key,
+"value": value,
+"notes": extra notes,
+"updated": updated timestamp,
+}
+```
+
+
+When using PKZIP or INFOZIP as a wrapper the data must be extracted using the '-p' command-line option, as the data was read from stdin and info-zip (somewhat stupidly) stores this as a file called '-'. Thus, to extract the data to a file you should use `unzip -p secrets.zcsv > secrets.csv`. 
+
+When using 7zip data can be extracted to a file using `7za x <file>` or to stdout using `7za x -so <file>`. Note that when extracting to stdout 7zip will not prompt for password, but does expect a password to be typed in.
+
+When using OPENSSL as a wrapper the unpack command has the format `openssl enc -d -a -md <digest algo> -<encryption algo> -pbkdf2 in <file>` where 'digest algo' and 'encryption algo' are the algorithms specified in settings as 'digest' and 'also' respectively. e.g.:
+
+```
+openssl enc -d -a -md sha256 -aes-256-cbc -pbkdf2 -in secrets.scsv
+```
+
+
+The type of file to export to is specified by the `-csv` `-xml` `-json` `-zcsv` `-zxml` `-zjson` `-7zcsv` `-7zxml` `-7zjson` `-scsv` `-sxml` and `-sjson` command-line options. If none of these are present, treasury will try to guess the fileetype from it's extension. For encrypted files the extentions have the forms `.zcsv` `.7zcsv` or `.scsv` etc.
+
 
 
 ## Syncing

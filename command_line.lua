@@ -31,9 +31,15 @@ do
 		elseif value=="-7zipcsv" then cmd.import_type="7zip.csv"
 		elseif value=="-7zipxml" then cmd.import_type="7zip.xml"
 		elseif value=="-7zipjson" then cmd.import_type="7zip.json"
+		elseif value=="-7zcsv" then cmd.import_type="7zip.csv"
+		elseif value=="-7zxml" then cmd.import_type="7zip.xml"
+		elseif value=="-7zjson" then cmd.import_type="7zip.json"
 		elseif value=="-sslcsv" then cmd.import_type="ssl.csv"
 		elseif value=="-sslxml" then cmd.import_type="ssl.xml"
 		elseif value=="-ssljson" then cmd.import_type="ssl.json"
+		elseif value=="-scsv" then cmd.import_type="ssl.csv"
+		elseif value=="-sxml" then cmd.import_type="ssl.xml"
+		elseif value=="-sjson" then cmd.import_type="ssl.json"
 		elseif value=="-g" or value=="-generate" then cmd.generate=32
 		elseif value=="-glen" then cmd.generate=tonumber(args[i+1]); args[i+1]=""
 		elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
@@ -55,6 +61,8 @@ do
 end
 
 strutil.trim(cmd.value)
+
+if cmd.type=="export" and strutil.strlen(cmd.import_type) == 0 then cmd.import_type=DeduceFileTypeFromPath(cmd.path) end
 
 return(cmd)
 end
