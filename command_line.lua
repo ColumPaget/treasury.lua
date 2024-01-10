@@ -13,6 +13,7 @@ cmd.generate=0
 
 for i,value in ipairs(args)
 do
+	-- FIRST ARGUMENT IS THE COMMAND, CommandLineParse ONLY PARSES OPTIONS
 	if i == 1 then cmd.type=value
 	elseif strutil.strlen(value) > 0 -- checking for nil is not enough, as we set some args to ""
 	then

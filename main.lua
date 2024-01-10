@@ -1,5 +1,5 @@
 Mode="cli"
-
+Version="1.2"
 
 
 function NewLockbox(cmd)
@@ -282,11 +282,10 @@ elseif cmd.type == "config-set" then config:change(arg[2], arg[3])
 elseif cmd.type == "shell" then Shell(cmd)
 elseif cmd.type == "chpw" then ChangePassword(cmd)
 elseif cmd.type == "rebuild" then Rebuild(cmd)
+elseif cmd.type == "version" or cmd.type == "-version" or cmd.type == "--version" then print("treasury.lua "..Version)
 elseif cmd.type == "--help" or cmd.type == "-help" or cmd.type == "help" or cmd.type == "-?" then PrintHelp()
 else
 PrintHelp()
---MainScreen()
---Term:clear()
 end
 
 Term:flush()

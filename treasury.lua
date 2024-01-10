@@ -1559,6 +1559,7 @@ cmd.generate=0
 
 for i,value in ipairs(args)
 do
+	-- FIRST ARGUMENT IS THE COMMAND, CommandLineParse ONLY PARSES OPTIONS
 	if i == 1 then cmd.type=value
 	elseif strutil.strlen(value) > 0 -- checking for nil is not enough, as we set some args to ""
 	then
@@ -1802,6 +1803,9 @@ print("   export [lockbox] [path] -7zxml          export key/value pairs from a 
 print("   export [lockbox] [path] -7zjson         export key/value pairs from a 7zipped json file (with password)")
 print("   show-config                             print out application config")
 print("   config-set [name] [value]               change a config value")
+print("   version                                 print program version")
+print("   -version                                print program version")
+print("   --version                               print program version")
 print("   --help                                  print help")
 print("   -help                                   print help")
 print("   help                                    print help")
@@ -1817,7 +1821,7 @@ end
 
 -- elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
 Mode="cli"
-
+Version="1.2"
 
 
 function NewLockbox(cmd)
@@ -2100,11 +2104,10 @@ elseif cmd.type == "config-set" then config:change(arg[2], arg[3])
 elseif cmd.type == "shell" then Shell(cmd)
 elseif cmd.type == "chpw" then ChangePassword(cmd)
 elseif cmd.type == "rebuild" then Rebuild(cmd)
+elseif cmd.type == "version" or cmd.type == "-version" or cmd.type == "--version" then print("treasury.lua "..Version)
 elseif cmd.type == "--help" or cmd.type == "-help" or cmd.type == "help" or cmd.type == "-?" then PrintHelp()
 else
 PrintHelp()
---MainScreen()
---Term:clear()
 end
 
 Term:flush()
