@@ -1871,9 +1871,8 @@ end
 
 
 
--- elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
 Mode="cli"
-Version="1.2"
+Version="1.4"
 
 
 function NewLockbox(cmd)
