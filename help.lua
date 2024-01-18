@@ -51,4 +51,3 @@ end
 
 
 
--- elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""

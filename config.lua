@@ -49,7 +49,10 @@ end
 
 
 config.get=function(self, name)
-return self.items[name]
+local str
+str=self.items[name]
+if str==nil then str="" end
+return str
 end
 
 
@@ -109,7 +112,7 @@ if self.items[name] == nil
 then
 	ErrorMsg("no such config setting: '"..name.."'")
 	return false
-elseif name=="mlock" or name=="scrub_files" or name=="syslog" 
+elseif name=="mlock" or name=="scrub_files" or name=="syslog" or name=="keyring"
 then
 	if config:set_bool(name, value) == false then return false end
 elseif name=="pass_hide"
@@ -133,6 +136,7 @@ config:set("syslog", "y")
 config:set("mlock", "n")
 config:set("scrub_files", "n")
 config:set("resist_strace", "n")
+config:set("keyring", "n")
 
 config:load()
 

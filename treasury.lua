@@ -60,7 +60,10 @@ end
 
 
 config.get=function(self, name)
-return self.items[name]
+local str
+str=self.items[name]
+if str==nil then str="" end
+return str
 end
 
 
@@ -120,7 +123,7 @@ if self.items[name] == nil
 then
 	ErrorMsg("no such config setting: '"..name.."'")
 	return false
-elseif name=="mlock" or name=="scrub_files" or name=="syslog" 
+elseif name=="mlock" or name=="scrub_files" or name=="syslog" or name=="keyring"
 then
 	if config:set_bool(name, value) == false then return false end
 elseif name=="pass_hide"
@@ -144,6 +147,7 @@ config:set("syslog", "y")
 config:set("mlock", "n")
 config:set("scrub_files", "n")
 config:set("resist_strace", "n")
+config:set("keyring", "n")
 
 config:load()
 
@@ -341,6 +345,46 @@ then
    end
 end
 
+end
+keyring={}
+
+keyring.set=function(self, lockbox_name, password)
+local S, str
+
+S=stream.STREAM("cmd:keyctl padd user 'treasury.lua:"..lockbox_name.."' @u","")
+if S ~= nil
+then
+S:writeln(password.."\r\n")
+S:commit()
+str=S:readln()
+S:close()
+end
+
+end
+
+
+
+keyring.get=function(self, lockbox_name)
+local S, str
+
+S=stream.STREAM("cmd:keyctl search @u user 'treasury.lua:"..lockbox_name.."'","rw stderr2null")
+if S ~= nil
+then
+str=S:readln()
+S:close()
+end
+
+if strutil.strlen(str) > 0
+then
+  S=stream.STREAM("cmd:keyctl pipe "..str,"rw stderr2null")
+  if S ~= nil
+  then
+     str=strutil.trim(S:readln())
+     S:close()
+  end
+end
+
+return str
 end
 function SyncInit()
 local sync={}
@@ -931,14 +975,22 @@ end
 lockbox.read=function(self)
 local S
 local str=""
+local queried_password=false
 
 S=stream.STREAM(self.path, "r")
 if S ~= nil
 then
 self:read_info(S)
-if strutil.strlen(self.password) == 0 then self.password=QueryPassword("Password for "..self.name..": ~>", self.passhint) end
+if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" then self.password=keyring:get(self.name) end
+if strutil.strlen(self.password) == 0 
+then
+	self.password=QueryPassword("Password for "..self.name..": ~>", self.passhint) 
+	queried_password=true
+end
 
 str=self:readencrypted(S:readdoc())
+
+if queried_password == true and strutil.strlen(str) > 0 and config:get("keyring") == "y" then keyring:set(self.name, self.password) end
 S:close()
 end
 

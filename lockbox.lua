@@ -233,14 +233,22 @@ end
 lockbox.read=function(self)
 local S
 local str=""
+local queried_password=false
 
 S=stream.STREAM(self.path, "r")
 if S ~= nil
 then
 self:read_info(S)
-if strutil.strlen(self.password) == 0 then self.password=QueryPassword("Password for "..self.name..": ~>", self.passhint) end
+if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" then self.password=keyring:get(self.name) end
+if strutil.strlen(self.password) == 0 
+then
+	self.password=QueryPassword("Password for "..self.name..": ~>", self.passhint) 
+	queried_password=true
+end
 
 str=self:readencrypted(S:readdoc())
+
+if queried_password == true and strutil.strlen(str) > 0 and config:get("keyring") == "y" then keyring:set(self.name, self.password) end
 S:close()
 end
 

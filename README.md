@@ -83,6 +83,7 @@ pass_hide           stars+1
 mlock               n
 resist_strace       n
 scrub_files         n
+keyring             n
 ```
 
 
@@ -107,6 +108,8 @@ The 'mlock' setting determines whether treasury.lua should attempt to lock itsel
 The 'resist_strace' setting configures treasury.lua to disallow stracing of the app. It will exit if it is already being straced. There is a race condition here where a skilled attacker could alter treasury.lua's behavior to allow stracing, which is why this is called 'resist' rather than 'deny'. By default this is off ('n').
 
 The 'scrub_files' feature overwrites deleted files with random data. This was once held to be vital to prevent data recovery, however in the modern age we have complex filesystems that may well keep backups of the original data, and we have SSD drivers, which suffer 'write wearing' meaning that repeated writes gradually wear them out, so this feature is not considered important anymore. Defaults to 'off' ('n').
+
+The 'keyring' feature uses the linux keyring system. This requires keyutils/keyctl to be installed. When this boolen option is turned on ('y') it will store passwords in the kernel keyring system as they are typed in. After being stored, treasury.lua will not need to ask for the password going forwards, and will 'remember' it for that user, until that user logs out. The 'user' keyring is used for this, so the passwords should be remembered for a given user on any terminal. This feature is new and experimental, so it defaults to off ('n'). 
 
 ## Import/Export
 
@@ -175,3 +178,6 @@ If swap partitions or swap files are being used to provide virtual memory, then 
 
 3) Plaintext import or export files
 If secrets are imported from plaintext files, or exported to plaintext files, then the data of those files can be left on disk. In the case of plaintext files, you can turn on 'scrub_files', and treasury.lua will attempt to overwrite the files with random data after importing them. HOWEVER, you should not do this on an SSD drive, as these drives will only support so many write operations per sector. Furthermore you should be aware that modern filesystems do a lot of magic in the background, and so might keep a backup of a file, or might decide that instead of overwriting the existing data it is more efficent to create a new file, leaving the old data still on the drive.
+
+4) Root can access keyring.
+If the keyring feature is used, then the root user will be able to switch users, or log in as other users, and read their encrypted files. However, the root user is so powerful that they can attack users in any number of ways, using keyloggers, changing the treasury.lua program, etc, etc. Keyring access might make it easier, but even with the keyring feature turned off they can still monitor the input/activity of users. You should never unpack encrypted files on systems you don't own. 
