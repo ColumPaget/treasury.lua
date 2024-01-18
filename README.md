@@ -84,6 +84,7 @@ mlock               n
 resist_strace       n
 scrub_files         n
 keyring             n
+keyring_timeout     3600
 ```
 
 
@@ -109,7 +110,10 @@ The 'resist_strace' setting configures treasury.lua to disallow stracing of the 
 
 The 'scrub_files' feature overwrites deleted files with random data. This was once held to be vital to prevent data recovery, however in the modern age we have complex filesystems that may well keep backups of the original data, and we have SSD drivers, which suffer 'write wearing' meaning that repeated writes gradually wear them out, so this feature is not considered important anymore. Defaults to 'off' ('n').
 
-The 'keyring' feature uses the linux keyring system. This requires keyutils/keyctl to be installed. When this boolen option is turned on ('y') it will store passwords in the kernel keyring system as they are typed in. After being stored, treasury.lua will not need to ask for the password going forwards, and will 'remember' it for that user, until that user logs out. The 'user' keyring is used for this, so the passwords should be remembered for a given user on any terminal. This feature is new and experimental, so it defaults to off ('n'). 
+The 'keyring' feature uses the linux keyring system. This requires keyutils/keyctl to be installed. When this boolen option is turned on ('y') it will store passwords in the kernel keyring system as they are typed in. After being stored, treasury.lua will not need to ask for the password going forwards, and will 'remember' it for that user, until that user logs out. treasury.lua will first try to store keys in the 'session' keyring, and if there isn't a session keyring, it will fall back to the  'user' keyring. The user keyring carries some dangers that anyone logged in as the user can get the password from the user keyring, even if they have a different login session. This feature is new and experimental, so it defaults to off ('n'). 
+
+The 'keyring_timeout' setting allows setting a timeout in seconds for passwords stored in the kernel keyring. If a given password is unused for longer than this time, then it will be deleted from the keyring. The default is one hour (3600 seconds).
+
 
 ## Import/Export
 

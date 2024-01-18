@@ -137,6 +137,7 @@ config:set("mlock", "n")
 config:set("scrub_files", "n")
 config:set("resist_strace", "n")
 config:set("keyring", "n")
+config:set("keyring_timeout", "3600")
 
 config:load()
 
