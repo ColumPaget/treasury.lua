@@ -5,19 +5,21 @@ function InitLockboxes()
 lockboxes={}
 
 lockboxes.path=function(self, name)
+if string.sub(name, 1, 1)=='/' then return(name) end
 return process.getenv("HOME") .. "/.treasury/" .. name ..".lb"
 end
 
 
 
 lockboxes.add=function(self, path)
-local item, str
+local item, name
 
-str=filesys.basename(path)
-pos=string.find(str, '%.')
-if pos > 1 then str=string.sub(str, 1, pos-1) end
 
-item=LockboxCreate(str)
+name=filesys.basename(path)
+pos=string.find(name, '%.')
+if pos > 1 then name=string.sub(name, 1, pos-1) end
+
+item=LockboxCreate(name, path)
 table.insert(self.items, item)
 
 return item
@@ -92,16 +94,23 @@ end
 lockboxes.find=function(self, name)
 local key, item
 
+if string.sub(name, 1, 1) == '/' 
+then 
+if filesys.exists(name) then return(self:add(name)) end
+return(nil)
+end
+
 for key,item in ipairs(self.items)
 do
-if item.name==name then return item end
+if item.name==name then return(item) end
 end
 
 --if we get here we didn't find it, try syncing
 print("'"..name.."' does not exist... checking for sync files")
 item=LockboxCreate(name)
-if sync:update(item) == true then return item end
-return nil
+if sync:update(item) == true then return(item) end
+return(nil)
+
 end
 
 

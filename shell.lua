@@ -71,6 +71,16 @@ local sorted={}
 end
 
 
+shell.get_data=function(self, cmd, box, key)
+local options={}
+
+if cmd == "show" then options.show_details = true end
+if cmd == "qr" then options.qr_code = true end
+if cmd == "clip" then options.to_clipboard = true end
+GetDataFromBox(box, key, options)
+
+end
+
 shell.cmd_loop=function(self, box)
 local str, toks, cmd, key, value
 
@@ -81,10 +91,10 @@ toks=strutil.TOKENIZER(str, "\\S", "Q")
 cmd=toks:next()
 if cmd=="quit" or cmd=="exit" then break end
 
-if cmd=="get" then GetDataFromBox(box, toks:remaining(), false, self.to_clipboard, false)
-elseif cmd=="show" then GetDataFromBox(box, toks:remaining(), true, false, false)
-elseif cmd=="qr" then GetDataFromBox(box, toks:remaining(), false, false, true)
-elseif cmd=="clip" then GetDataFromBox(box, toks:remaining(), false, true, false)
+if cmd=="get" then self:get_data(cmd, box, toks:remaining())
+elseif cmd=="show" then self:get_data(cmd, box, toks:remaining())
+elseif cmd=="qr" then self:get_data(cmd, box, toks:remaining())
+elseif cmd=="clip" then self:get_data(cmd, box, toks:remaining())
 elseif cmd=="add" or cmd=="set"
 then
  box:add(toks:next(), toks:next(), toks:remaining())
@@ -112,7 +122,7 @@ print("set  <key> <data> <notes>    - add a new entry, overwriting existing entr
 print("enter        - enter 'data entry' mode")
 print("rm   <key>   - remove an entry")
 print("del  <key>   - remove an entry")
-else ErrorMsg("Unrecognized command: ["..str.."]")
+else ui:error("Unrecognized command: ["..str.."]")
 end
 
 str=self:ask("> ")
@@ -132,10 +142,10 @@ then
   self.to_clipboard=cmd_line.to_clipboard
   self:cmd_loop(box)
   else
-    ErrorMsg("failed to load/decrypt lockbox")
+    ui:error("failed to load/decrypt lockbox")
   end
 else
-  ErrorMsg("no such lockbox")
+  ui:error("no such lockbox")
 end
 
 end

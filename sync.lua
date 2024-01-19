@@ -10,12 +10,16 @@ if tmp==nil then return nil end
 if tmp:examine() == false then return nil end
 if strutil.strlen(tmp.name) == 0 then return nil end
 
-if tmp.password == nil then
-tmp.password=QueryPassword("Enter Password for import file: ", tmp.passhint)
-end
+--if tmp.password == nil then
+tmp.password=ui:ask_password("Enter Password for sync file '"..filesys.basename(path).."': ", tmp.passhint)
+--end
 
 tmp.suppress_errors=true
-if tmp:load_items() == false then return nil end
+if tmp:load_items() == false
+then 
+ui:error("Failed to open sync file '"..path.."'. Wrong password?")
+return nil
+end
 
 return tmp
 end

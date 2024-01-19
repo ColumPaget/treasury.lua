@@ -39,6 +39,7 @@ actions:
    del [lockbox] [key]                     remove a key/value pair from a lockbox
    rm  [lockbox] [key]                     remove a key/value pair from a lockbox
    get [lockbox] [key]                     get the value matching 'key' in a lockbox
+   get [lockbox] [key] -o <path>           get the value matching 'key' in a lockbox, and write to 'path'.
    get [lockbox] [key] -clip               get the value matching 'key' in a lockbox and put it to the system clipboard
    get [lockbox] [key] -qr                 get the value matching 'key' in a lockbox and display it as a qr code
    find [lockbox] [search pattern]         find key/value pairs matching 'search pattern'

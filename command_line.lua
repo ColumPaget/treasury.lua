@@ -7,6 +7,7 @@ cmd.qr_code=false
 cmd.csv=false
 cmd.json=false
 cmd.value=""
+cmd.notes=""
 cmd.fieldlist=""
 cmd.items=""
 cmd.generate=0
@@ -44,24 +45,25 @@ do
 		elseif value=="-g" or value=="-generate" then cmd.generate=32
 		elseif value=="-glen" then cmd.generate=tonumber(args[i+1]); args[i+1]=""
 		elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
+		elseif value=="-o" then cmd.output_path=args[i+1]; args[i+1]=""
 		elseif strutil.strlen(cmd.box)==0 then cmd.box=value
-		else
-			if cmd.type == "import" 
-			then 
-			cmd.path=value
-			elseif cmd.type=="export"
-			then
-			  if strutil.strlen(cmd.path) == 0 then cmd.path=value
-			  else cmd.items=cmd.items .. value..","
-                          end
-			elseif strutil.strlen(cmd.key)==0 then cmd.key=value
-			else cmd.value=cmd.value .. value .." "
-			end
+		--from here on in we are treating the string not as a switch/option, but as data: paths, keynames, keyvalues, notes
+		elseif cmd.type == "import" then cmd.path=value
+		elseif cmd.type=="export"
+		then
+        if strutil.strlen(cmd.path) == 0 then cmd.path=value
+        else cmd.items=cmd.items .. value..","
+        end
+		elseif strutil.strlen(cmd.key)==0 then cmd.key=value
+		elseif strutil.strlen(cmd.value)==0 then cmd.value=value
+		else cmd.notes=cmd.notes.. " "..value
 		end
 	end
 end
 
-strutil.trim(cmd.value)
+		-- here we pars things into 'box' 'key' 'value' and 'notes' depending on the item type
+cmd.value=strutil.trim(cmd.value)
+cmd.notes=strutil.trim(cmd.notes)
 
 if cmd.type=="export" and strutil.strlen(cmd.import_type) == 0 then cmd.import_type=DeduceFileTypeFromPath(cmd.path) end
 

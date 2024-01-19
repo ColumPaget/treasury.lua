@@ -30,7 +30,7 @@ config.set_bool=function(self, name, value)
 if value=="true" or value=="Y" or value=="y" or value=="yes" then self:set(name, "y")
 elseif value=="false" or value=="N" or value=="n" or value=="no" then self:set(name, "n")
 else
-	ErrorMsg("Invalid value '"..value.."' for boolean setting '"..name.."'. Valid values: 'true','false','Y','N','y','n'")
+	ui:error("Invalid value '"..value.."' for boolean setting '"..name.."'. Valid values: 'true','false','Y','N','y','n'")
 	return false
 end
 
@@ -53,7 +53,7 @@ do
 	end
 end
 
-ErrorMsg("Invalid value '" .. value .. " for setting '" .. name .. "'. Valid values:  " .. str)
+ui:error("Invalid value '" .. value .. " for setting '" .. name .. "'. Valid values:  " .. str)
 
 return false
 end
@@ -121,7 +121,7 @@ config.change=function(self, name, value)
 
 if self.items[name] == nil 
 then
-	ErrorMsg("no such config setting: '"..name.."'")
+	ui:error("no such config setting: '"..name.."'")
 	return false
 elseif name=="mlock" or name=="scrub_files" or name=="syslog" or name=="keyring"
 then
@@ -237,13 +237,13 @@ then
 	end
 	S:close()
 else
-	ErrorMsg("failed to scrub/overwrite: ".. path)
+	ui:error("failed to scrub/overwrite: ".. path)
 end
 
 end
 
 filesys.unlink(path)
-if filesys.exists(path) == true then ErrorMsg("failed to delete: ".. path) end
+if filesys.exists(path) == true then ui:error("failed to delete: ".. path) end
 end
 
 function ReadToPassword(S)
@@ -456,12 +456,16 @@ if tmp==nil then return nil end
 if tmp:examine() == false then return nil end
 if strutil.strlen(tmp.name) == 0 then return nil end
 
-if tmp.password == nil then
-tmp.password=QueryPassword("Enter Password for import file: ", tmp.passhint)
-end
+--if tmp.password == nil then
+tmp.password=ui:ask_password("Enter Password for sync file '"..filesys.basename(path).."': ", tmp.passhint)
+--end
 
 tmp.suppress_errors=true
-if tmp:load_items() == false then return nil end
+if tmp:load_items() == false
+then 
+ui:error("Failed to open sync file '"..path.."'. Wrong password?")
+return nil
+end
 
 return tmp
 end
@@ -700,8 +704,21 @@ result=process.waitStatus(pid)
 if result=="exit:0" then return true end
 return false
 end
-function ErrorMsg(msg)
+function UI_Init()
+local ui={}
+
+
+ui.title_bar=function(self, text)
+Term:move(0,0)
+Term:puts(text.."~>~0")
+end
+
+
+
+ui.error=function(self, msg)
 local str
+
+if msg==nil then msg="" end
 
 if Mode=="menu"
 then
@@ -709,16 +726,20 @@ then
 	str=Term:puts("~R~w"..msg.."~>")
 	Term:puts("~0")
 else
-	str=Term:puts("~r~eERROR: "..msg)
-	Term:puts("~0\n")
+	str=terminal.format("~r~eERROR: "..msg.."~0\n")
+	io.stderr:write(str)
 end
 
 return str
 end
 
 
+ui.error_no_lockbox=function(self, box)
+self:error("no such lockbox '"..box.."' for user '"..process.user().."'")
+end
 
-function QueryBar(prompt)
+
+ui.query_bar=function(self, prompt)
 local str
 
 if Mode=="menu"
@@ -735,21 +756,21 @@ return str
 end
 
 
-function QueryNewLockboxDetails(prompt)
+ui.ask_lockbox_details=function(self, prompt)
 local pass, hint
 
 if prompt == nil then prompt="Password for new lockbox:" end
 pass=Term:prompt(prompt, config:get("pass_hide"))
 Term:puts("\n")
 
-if strutil.strlen(pass) > 0 then hint=QueryBar("Password hint (leave blank for none):" ) end
+if strutil.strlen(pass) > 0 then hint=ui:query_bar("Password hint (leave blank for none):" ) end
 
 return pass, hint
 end
 
 
 
-function QueryPassword(prompt, hint)
+ui.ask_password=function(self, prompt, hint)
 local str
 
 if Mode=="menu"
@@ -769,11 +790,11 @@ end
 
 
 
-function QueryNewItem(box)
+ui.new_item=function(self, box)
 local key, value
 
-key=QueryBar("Enter name/key for new item: ")
-value=QueryBar("Enter value for new item: ")
+key=ui:query_bar("Enter name/key for new item: ")
+value=ui:query_bar("Enter value for new item: ")
 
 box:add(key, value)
 box:save()
@@ -781,10 +802,10 @@ end
 
 
 
-function QueryNewItemWithEditor(box)
+ui.new_item_editor=function(self, box)
 local key, value
 
-key=QueryBar("Enter name/key for new item: ")
+key=ui:query_bar("Enter name/key for new item: ")
 value=EditorLaunch()
 
 box:add(key, value)
@@ -792,12 +813,8 @@ box:save()
 end
 
 
-
-function TitleBar(text)
-Term:move(0,0)
-Term:puts(text.."~>~0")
+return(ui)
 end
-
 
 
 
@@ -818,7 +835,7 @@ else lockbox.path=path
 end
 
 
--- fron here on is member functions of 'lockbox'
+-- from here on is member functions of 'lockbox'
 
 lockbox.saveencrypted=function(self, data, Dest)
 local str, Proc, S
@@ -842,15 +859,21 @@ end
 end
 
 
-lockbox.save=function(self, do_sync)
-local str, S, key, item
+lockbox.save_fmt_item=function(self, name, value)
+return(name .. "=\"" .. strutil.quoteChars(value, "|\r\n\"")  .. "\" ")
+end
 
-if strutil.strlen(self.password) == 0 then self.password=QueryPassword("Password for "..self.name..": ~>") end
+
+lockbox.save=function(self, do_sync)
+local str, S, key, item, name, value
+
+if strutil.strlen(self.password) == 0 then self.password=ui:ask_password("Password for "..self.name..": ~>") end
 
 filesys.mkdirPath(self.path)
 S=stream.STREAM(self.path, "w")
 if S ~= nil
 then
+	--save lockbox file header
 	self.filefmt="kv"
 	self.version=self.version + 1
 	S:writeln("name:"..self.name.."\n")
@@ -864,7 +887,12 @@ then
 	str=""
 	for key,item in pairs(self.items)
 	do
-		str=str .. key .. " updated=\"" .. item.updated .. "\" value=\"" .. strutil.quoteChars(item.value, "\n\"") .. "\" notes=\"" .. strutil.quoteChars(item.notes, "\n\"") ..  "\"\n"
+		str=str .. key .. " "
+		for name,value in pairs(item)
+		do
+		if name ~= "name" then str=str..self:save_fmt_item(name, value) end
+		end
+		str=str ..  "\n"
 	end
 
 	self:saveencrypted(str, S)
@@ -877,32 +905,42 @@ end
 
 
 
+lockbox.add_item=function(self, item)
+if strutil.strlen(item.updated) == 0 then item.updated=time.format("%Y/%m/%dT%H:%M:%S") end
 
-lockbox.add=function(self, key, value, notes, updated)
+self.items[item.name]=item
+end
+
+
+
+lockbox.add=function(self, name, value, notes, updated, item_type)
 local item
 
-key=strutil.quoteChars(key, "|")
+name=strutil.quoteChars(name, "|")
 
 item={}
-if strutil.strlen(updated) == 0 then item.updated=time.format("%Y/%m/%dT%H:%M:%S") 
-else item.updated=updated end
+if item.type ~= nil then item.type=item_type
+else item.type=""
+end
 
-item.name=key
-item.value=strutil.quoteChars(value, "\r\n|")
-item.notes=strutil.quoteChars(notes, "\r\n|")
+item.type=item_type 
+item.name=name
+item.value=value
+item.notes=notes
+item.updated=updated
 
-self.items[key]=item
+self:add_item(item)
 end
 
 
 
 
 lockbox.parse_kv=function(self, data, item)
-local toks, key
+local toks, key, str
 
 toks=strutil.TOKENIZER(data, "=", "Q")
 key=toks:next()
-item[key]=strutil.unQuote(toks:next())
+if strutil.strlen(key) > 0 then item[key]=strutil.unQuote(toks:next()) end
 end
 
 
@@ -910,6 +948,11 @@ lockbox.add_kv_item=function(self, data)
 local toks, tok 
 local item={}
 
+--these will get overwritten if they exist in data
+item.type=""
+item.updated=time.format("%Y/%m/%dT%H:%M:%S") 
+
+-- go through data parsing name/value pairs
 toks=strutil.TOKENIZER(data, "\\S", "Q")
 item.name=toks:next()
 tok=toks:next()
@@ -919,7 +962,7 @@ self:parse_kv(tok, item)
 tok=toks:next()
 end
 
-self:add(item.name, item.value, item.notes, item.updated)
+self.items[item.name]=item
 end
 
 
@@ -1042,7 +1085,7 @@ self:read_info(S)
 if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" then self.password=keyring:get(self.name) end
 if strutil.strlen(self.password) == 0 
 then
-	self.password=QueryPassword("Password for "..self.name..": ~>", self.passhint) 
+	self.password=ui:ask_password("Password for "..self.name..": ~>", self.passhint) 
 	queried_password=true
 end
 
@@ -1106,19 +1149,21 @@ function InitLockboxes()
 lockboxes={}
 
 lockboxes.path=function(self, name)
+if string.sub(name, 1, 1)=='/' then return(name) end
 return process.getenv("HOME") .. "/.treasury/" .. name ..".lb"
 end
 
 
 
 lockboxes.add=function(self, path)
-local item, str
+local item, name
 
-str=filesys.basename(path)
-pos=string.find(str, '%.')
-if pos > 1 then str=string.sub(str, 1, pos-1) end
 
-item=LockboxCreate(str)
+name=filesys.basename(path)
+pos=string.find(name, '%.')
+if pos > 1 then name=string.sub(name, 1, pos-1) end
+
+item=LockboxCreate(name, path)
 table.insert(self.items, item)
 
 return item
@@ -1193,16 +1238,23 @@ end
 lockboxes.find=function(self, name)
 local key, item
 
+if string.sub(name, 1, 1) == '/' 
+then 
+if filesys.exists(name) then return(self:add(name)) end
+return(nil)
+end
+
 for key,item in ipairs(self.items)
 do
-if item.name==name then return item end
+if item.name==name then return(item) end
 end
 
 --if we get here we didn't find it, try syncing
 print("'"..name.."' does not exist... checking for sync files")
 item=LockboxCreate(name)
-if sync:update(item) == true then return item end
-return nil
+if sync:update(item) == true then return(item) end
+return(nil)
+
 end
 
 
@@ -1344,7 +1396,7 @@ end
 importer.open_zip=function(self, path)
 local str, Proc, PtyS, S, password, doc
 
-password=QueryPassword("password for encrypted zip file:")
+password=ui:ask_password("password for encrypted zip file:")
 str="unzip -p " .. path 
 Proc=process.PROCESS(str, "ptystream")
 
@@ -1366,7 +1418,7 @@ end
 importer.open_7zip=function(self, path)
 local str, password, Proc, PtyS
 
-password=QueryPassword("password for encrypted 7zip file: ")
+password=ui:ask_password("password for encrypted 7zip file: ")
 
 str="7za x " .. path .. " -so"
 Proc=process.PROCESS(str, "ptystream")
@@ -1386,7 +1438,7 @@ end
 importer.open_ssldecrypt=function(self, path)
 local Proc, password, S
 
-password=QueryPassword("password for ssl encrypted import file:")
+password=ui:ask_password("password for ssl encrypted import file:")
 Proc=openssl:open_decrypt(password, path) 
 
 S=Proc:get_stream()
@@ -1427,19 +1479,215 @@ end
 
 if S ~= nil 
 then
-doc=S:readdoc()
-doctype=self:import_type(doc, import_type)
-S:close()
+  doc=S:readdoc()
+  if strutil.strlen(doc) > 0 then doctype=self:import_type(doc, import_type)
+  else ui:error("No data to import. Wrong password?")
+  end
+  S:close()
+else
+  ui:error("Failed to open import file. Wrong password?")
 end
 
 
 if doctype == "json" then self:import_json(box, doc)
---elseif doctype=="xml" then self:import_xml(box, doc)
+elseif doctype=="xml" then self:import_xml(box, doc)
 else self:import_csv(box, doc)
 end
 
 print("IMPORTED: " .. tostring(self.items_imported) .. " lines")
 box:save(true)
+end
+
+
+importer.csv_map_fields=function(self, field_map, fields)
+local toks, tok, count, field
+local fieldlist={}
+
+count=0
+toks=strutil.TOKENIZER(fields, ",")
+tok=toks:next()
+while tok ~= nil
+do
+	field=field_map[tok] 
+	if field == nil then field="notes" end
+	count=count + 1
+  fieldlist[count]=field
+
+tok=toks:next()
+end
+
+return fieldlist
+end
+
+
+
+importer.import_csv_line=function(self, box, line, fields)
+local toks, tok, field
+local key=""
+local value=""
+local notes=""
+local count=1
+
+toks=strutil.TOKENIZER(line, ",", "Q")
+
+tok=toks:next()
+while tok ~= nil
+do
+  field=self:map_field(fields, "", count)
+  count=count+1
+
+  if field == "key" then key=tok
+  elseif field == "value" then value=tok
+  else notes=notes.." "..tok
+  end
+
+tok=toks:next()
+end
+
+if strutil.strlen(key) > 0 
+then
+ box:add(key, value, notes) 
+ self.items_imported=self.items_imported + 1
+ return(true)
+end
+
+return(false)
+end
+
+
+
+importer.import_csv=function(self, box, doc)
+local lines, line
+
+lines=strutil.TOKENIZER(doc, "\n", "Q")
+
+if self.fields_type=="map" then fields=self:csv_map_fields(self.fields, lines:next())
+else fields=self.fields
+end
+
+
+--if no fieldlist supplied then assume first line of file is a fieldlist
+if fields==nil then fields=self:read_fieldlist(lines:next()) end
+
+
+line=lines:next()
+while line ~= nil
+do
+	self:import_csv_line(box, line, fields) 
+	line=lines:next()
+end
+
+
+end
+
+
+importer.import_json_item=function(self, box, item)
+local keyname, valuename, notesname, updatedname, key, value, notes, updated
+
+if self.fields ~= nil
+then
+keyname=self.fields["key"]
+valuename=self.fields["value"]
+notesname=self.fields["notes"]
+updatedname=self.fields["updated"]
+
+else
+keyname="name"
+valuename="value"
+notesname="notes"
+updatedname="updated"
+end
+
+
+key=item:value(keyname)
+value=item:value(valuename)
+notes=item:value(notesname)
+updated=item:value(updatedname)
+
+
+if strutil.strlen(key) > 0
+then
+box:add(key, value, notes, updated)
+self.items_imported=self.items_imported + 1
+end
+
+end
+
+
+importer.import_json_list=function(self, box, items)
+local item
+
+item=items:next()
+while item ~= nil
+do
+	self:import_json_iterate(box, item)
+	item=items:next()
+end
+
+end
+
+
+importer.import_json_iterate=function(self, box, item)
+
+if item == nil then return end
+
+if item:type() == "array"
+then 
+  items=parent:subitems()
+  self:import_json_list(box, items)
+else self:import_json_item(box, item)
+end
+
+end
+
+
+importer.import_json=function(self, box, doc)
+local P, items, item
+
+items=dataparser.PARSER("json", doc)
+if items ~= nil then self:import_json_list(box, items) end
+
+end
+
+
+require("xml")
+
+importer.import_xml_item=function(self, box, XML)
+local tok
+local item={}
+
+tok=XML:next()
+while tok ~= nil
+do
+if tok.type=="name" then item.name=XML:next().data
+elseif tok.type=="value" then item.value=XML:next().data
+elseif tok.type=="notes" then item.notes=XML:next().data
+elseif tok.type=="type" then item.type=XML:next().data
+elseif tok.type=="updated" then item.updated=XML:next().data
+elseif tok.type=="/item" then break 
+end
+
+tok=XML:next()
+end
+
+box:add_item(item) 
+self.items_imported=self.items_imported + 1
+
+end
+
+
+
+importer.import_xml=function(self, box, doc)
+local XML, tok
+
+XML=xml.XML(doc)
+tok=XML:next()
+while tok ~= nil
+do
+if tok.type=="item" then self:import_xml_item(box, XML) end
+tok=XML:next()
+end
+
 end
 
 exporter={}
@@ -1489,11 +1737,13 @@ local str, key, item
 
 if Out==nil then Out=stream.STREAM("stdout:") end
 
+Out:writeln("{\n")
 for key, item in pairs(items)
 do
-str="{\n" .. self:json_item("name", item.name) .. self:json_item("value", item.value) .. self:json_item("notes", item.notes) ..  self:json_item("updated", item.updated) .. "}\n"
+str="{\n" .. self:json_item("name", item.name) .. self:json_item("value", item.value) .. self:json_item("notes", item.notes) ..  self:json_item("updated", item.updated) .. "},\n"
 Out:writeln(str)
 end
+Out:writeln("}\n")
 
 Out:flush()
 end
@@ -1502,7 +1752,7 @@ end
 exporter.openzip=function(self, export_path)
 local str, password, Proc, PtyS
 
-password=QueryPassword("password for exported zip file: ")
+password=ui:ask_password("password for exported zip file: ")
 
 str="zip " .. export_path .. " -e -"
 Proc=process.PROCESS(str, "rw ptystream ptystderr")
@@ -1522,7 +1772,7 @@ end
 exporter.open7zip=function(self, export_path)
 local str, password, Proc, PtyS
 
-password=QueryPassword("password for exported 7zip file: ")
+password=ui:ask_password("password for exported 7zip file: ")
 
 str="7za a " .. export_path .. " -p -si"
 print(str)
@@ -1547,7 +1797,7 @@ end
 exporter.open_sslencrypt=function(self, export_path)
 local password, Proc
 
-password=QueryPassword("password for exported openssl encrypted file: ")
+password=ui:ask_password("password for exported openssl encrypted file: ")
 Proc=openssl:open_encrypt(password, export_path)
 
 return Proc
@@ -1620,7 +1870,7 @@ local items
 box=lockboxes:find(cmd.box)
 if box==nil
 then
-ErrorMsg("ERROR: no such lockbox '"..cmd.box.."'")
+ui:error("ERROR: no such lockbox '"..cmd.box.."'")
 return
 end
 
@@ -1663,6 +1913,7 @@ cmd.qr_code=false
 cmd.csv=false
 cmd.json=false
 cmd.value=""
+cmd.notes=""
 cmd.fieldlist=""
 cmd.items=""
 cmd.generate=0
@@ -1700,24 +1951,25 @@ do
 		elseif value=="-g" or value=="-generate" then cmd.generate=32
 		elseif value=="-glen" then cmd.generate=tonumber(args[i+1]); args[i+1]=""
 		elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
+		elseif value=="-o" then cmd.output_path=args[i+1]; args[i+1]=""
 		elseif strutil.strlen(cmd.box)==0 then cmd.box=value
-		else
-			if cmd.type == "import" 
-			then 
-			cmd.path=value
-			elseif cmd.type=="export"
-			then
-			  if strutil.strlen(cmd.path) == 0 then cmd.path=value
-			  else cmd.items=cmd.items .. value..","
-                          end
-			elseif strutil.strlen(cmd.key)==0 then cmd.key=value
-			else cmd.value=cmd.value .. value .." "
-			end
+		--from here on in we are treating the string not as a switch/option, but as data: paths, keynames, keyvalues, notes
+		elseif cmd.type == "import" then cmd.path=value
+		elseif cmd.type=="export"
+		then
+        if strutil.strlen(cmd.path) == 0 then cmd.path=value
+        else cmd.items=cmd.items .. value..","
+        end
+		elseif strutil.strlen(cmd.key)==0 then cmd.key=value
+		elseif strutil.strlen(cmd.value)==0 then cmd.value=value
+		else cmd.notes=cmd.notes.. " "..value
 		end
 	end
 end
 
-strutil.trim(cmd.value)
+		-- here we pars things into 'box' 'key' 'value' and 'notes' depending on the item type
+cmd.value=strutil.trim(cmd.value)
+cmd.notes=strutil.trim(cmd.notes)
 
 if cmd.type=="export" and strutil.strlen(cmd.import_type) == 0 then cmd.import_type=DeduceFileTypeFromPath(cmd.path) end
 
@@ -1796,6 +2048,16 @@ local sorted={}
 end
 
 
+shell.get_data=function(self, cmd, box, key)
+local options={}
+
+if cmd == "show" then options.show_details = true end
+if cmd == "qr" then options.qr_code = true end
+if cmd == "clip" then options.to_clipboard = true end
+GetDataFromBox(box, key, options)
+
+end
+
 shell.cmd_loop=function(self, box)
 local str, toks, cmd, key, value
 
@@ -1806,10 +2068,10 @@ toks=strutil.TOKENIZER(str, "\\S", "Q")
 cmd=toks:next()
 if cmd=="quit" or cmd=="exit" then break end
 
-if cmd=="get" then GetDataFromBox(box, toks:remaining(), false, self.to_clipboard, false)
-elseif cmd=="show" then GetDataFromBox(box, toks:remaining(), true, false, false)
-elseif cmd=="qr" then GetDataFromBox(box, toks:remaining(), false, false, true)
-elseif cmd=="clip" then GetDataFromBox(box, toks:remaining(), false, true, false)
+if cmd=="get" then self:get_data(cmd, box, toks:remaining())
+elseif cmd=="show" then self:get_data(cmd, box, toks:remaining())
+elseif cmd=="qr" then self:get_data(cmd, box, toks:remaining())
+elseif cmd=="clip" then self:get_data(cmd, box, toks:remaining())
 elseif cmd=="add" or cmd=="set"
 then
  box:add(toks:next(), toks:next(), toks:remaining())
@@ -1837,7 +2099,7 @@ print("set  <key> <data> <notes>    - add a new entry, overwriting existing entr
 print("enter        - enter 'data entry' mode")
 print("rm   <key>   - remove an entry")
 print("del  <key>   - remove an entry")
-else ErrorMsg("Unrecognized command: ["..str.."]")
+else ui:error("Unrecognized command: ["..str.."]")
 end
 
 str=self:ask("> ")
@@ -1857,10 +2119,10 @@ then
   self.to_clipboard=cmd_line.to_clipboard
   self:cmd_loop(box)
   else
-    ErrorMsg("failed to load/decrypt lockbox")
+    ui:error("failed to load/decrypt lockbox")
   end
 else
-  ErrorMsg("no such lockbox")
+  ui:error("no such lockbox")
 end
 
 end
@@ -1930,25 +2192,25 @@ end
 
 
 Mode="cli"
-Version="1.4"
+Version="1.6"
 
 
 function NewLockbox(cmd)
 local name
 
 name=cmd.box
-if strutil.strlen(name) == 0 then name=QueryBar("Name: ")  end
+if strutil.strlen(name) == 0 then name=ui:query_bar("Name: ")  end
 
 if strutil.strlen(name) > 0 
 then 
 	box=lockboxes:find(name)
 	if box ~= nil 
 	then 
-		str=QueryBar("~rLockbox '"..name.."' already exists! Overwrite?  ")
+		str=ui:query_bar("~rLockbox '"..name.."' already exists! Overwrite?  ")
 		if str ~= "y" then return end
 	end
 
-	pass,hint=QueryNewLockboxDetails()
+	pass,hint=ui:ask_lockbox_details()
 	Term:puts("\nSetting up new lockbox\n")
 	box=lockboxes:new(name, pass, hint)
 	box:save()
@@ -1966,11 +2228,11 @@ if box ~= nil
 then
 	if box:load() == true
 	then
-	box.password,box.passhint=QueryNewLockboxDetails("New Password for Lockbox:")
+	box.password,box.passhint=ui:ask_lockbox_details("New Password for Lockbox:")
 	box:save()
-	else ErrorMsg("incorrect password")
+	else ui:error("incorrect password")
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user())
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -1983,9 +2245,9 @@ box=lockboxes:find(cmd.box)
 if box ~= nil
 then
 	if box:load() == true then box:save()
-	else ErrorMsg("incorrect password")
+	else ui:error("incorrect password")
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user())
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -2003,7 +2265,7 @@ end
 
 if strutil.strlen(cmd.value) ~= 0 
 then 
-	lockboxes:deposit(cmd.box, cmd.key, cmd.value)
+	lockboxes:deposit(cmd.box, cmd.key, cmd.value, cmd.notes)
 else
 	str=EditorLaunch()
   if strutil.strlen(str) > 0 
@@ -2019,7 +2281,7 @@ function DumpData(cmd)
 local str
 
 str=lockboxes:read(cmd.box)
-if str==nil then ErrorMsg("incorrect password")
+if str==nil then ui:error("incorrect password")
 -- use print not Term:puts to prevent interpretation of characters in the dump
 else print(str)
 end
@@ -2029,22 +2291,34 @@ end
 
 
 
-function GetDataFromBox(box, key, show_details, to_clipboard, qr_code, use_osc52)
+function GetDataFromBox(box, key, cmd)
 local item
 
 	item=box:get(key)
 	Term:puts("\n")
 	if item ~= nil 
 	then 
+
+		if strutil.strlen(cmd.output_path) > 0
+		then
+		  S=stream.STREAM(cmd.output_path, "w")
+		  if S ~= nil
+		   then
+		   S:writeln(item.value.."\n")
+		   S:close()
+		  end
+		else
 		Term:puts(item.value .. "\n")
-		if to_clipboard == true then ToClipboard(item.value, use_osc52) end
-		if qr_code == true then DisplayQRCode(item.value) end
-		if show_details==true
+		end
+
+		if cmd.to_clipboard == true then ToClipboard(item.value, cmd.osc52_clip) end
+		if cmd.qr_code == true then DisplayQRCode(item.value) end
+		if cmd.show_details==true
 		then
 		   Term:puts("updated: " .. item.updated .."\n")
 		   Term:puts("notes: ".. item.notes .."\n")
 		end
-	else ErrorMsg("key not found in lockbox")
+	else ui:error("key not found in lockbox")
 	end
 end
 
@@ -2056,10 +2330,10 @@ box=lockboxes:find(cmd.box)
 if box ~= nil
 then
 	if box:load() == true
-	then GetDataFromBox(box, cmd.key, false, cmd.to_clipboard, cmd.qr_code, cmd.osc52_clip)
-	else ErrorMsg("incorrect password")
+	then GetDataFromBox(box, cmd.key, cmd)
+	else ui:error("incorrect password")
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user())
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -2081,7 +2355,7 @@ then
 			Term:puts(item.value.."\n")
 		end
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user().."'")
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -2111,7 +2385,7 @@ then
 	do
 		Term:puts(key.."\n")
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user().."'")
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -2135,7 +2409,7 @@ local S, str, toks
 
 if strutil.strlen(cmd.path) == 0
 then
-ErrorMsg("import command must have format: treasury.lua import <lockbox> <import path>")
+ui:error("import command must have format: treasury.lua import <lockbox> <import path>")
 return
 end
 
@@ -2152,7 +2426,7 @@ local i
 
 for i=2,#cmd_line,1
 do
-if lockboxes:sync(cmd_line[i]) ~= true then ErrorMsg("incorrect password") end
+if lockboxes:sync(cmd_line[i]) ~= true then ui:error("incorrect password") end
 end
 end
 
@@ -2179,6 +2453,7 @@ if config.resist_strace==true then str=str.."resist_strace " end
 process.configure(str)
 
 --next setup the terminal. We do this early as other functions need a terminal to write to
+ui=UI_Init()
 Term=terminal.TERM(nil, "wheelmouse rawkeys save")
 
 --setup the 'lockboxes' system that actually stores our data
@@ -2190,6 +2465,7 @@ sync=SyncInit()
 hosts=HostsInit()
 
 end
+
 
 
 

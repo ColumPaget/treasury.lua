@@ -1,23 +1,23 @@
 Mode="cli"
-Version="1.5"
+Version="1.6"
 
 
 function NewLockbox(cmd)
 local name
 
 name=cmd.box
-if strutil.strlen(name) == 0 then name=QueryBar("Name: ")  end
+if strutil.strlen(name) == 0 then name=ui:query_bar("Name: ")  end
 
 if strutil.strlen(name) > 0 
 then 
 	box=lockboxes:find(name)
 	if box ~= nil 
 	then 
-		str=QueryBar("~rLockbox '"..name.."' already exists! Overwrite?  ")
+		str=ui:query_bar("~rLockbox '"..name.."' already exists! Overwrite?  ")
 		if str ~= "y" then return end
 	end
 
-	pass,hint=QueryNewLockboxDetails()
+	pass,hint=ui:ask_lockbox_details()
 	Term:puts("\nSetting up new lockbox\n")
 	box=lockboxes:new(name, pass, hint)
 	box:save()
@@ -35,11 +35,11 @@ if box ~= nil
 then
 	if box:load() == true
 	then
-	box.password,box.passhint=QueryNewLockboxDetails("New Password for Lockbox:")
+	box.password,box.passhint=ui:ask_lockbox_details("New Password for Lockbox:")
 	box:save()
-	else ErrorMsg("incorrect password")
+	else ui:error("incorrect password")
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user())
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -52,9 +52,9 @@ box=lockboxes:find(cmd.box)
 if box ~= nil
 then
 	if box:load() == true then box:save()
-	else ErrorMsg("incorrect password")
+	else ui:error("incorrect password")
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user())
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -72,7 +72,7 @@ end
 
 if strutil.strlen(cmd.value) ~= 0 
 then 
-	lockboxes:deposit(cmd.box, cmd.key, cmd.value)
+	lockboxes:deposit(cmd.box, cmd.key, cmd.value, cmd.notes)
 else
 	str=EditorLaunch()
   if strutil.strlen(str) > 0 
@@ -88,7 +88,7 @@ function DumpData(cmd)
 local str
 
 str=lockboxes:read(cmd.box)
-if str==nil then ErrorMsg("incorrect password")
+if str==nil then ui:error("incorrect password")
 -- use print not Term:puts to prevent interpretation of characters in the dump
 else print(str)
 end
@@ -98,22 +98,34 @@ end
 
 
 
-function GetDataFromBox(box, key, show_details, to_clipboard, qr_code, use_osc52)
+function GetDataFromBox(box, key, cmd)
 local item
 
 	item=box:get(key)
 	Term:puts("\n")
 	if item ~= nil 
 	then 
+
+		if strutil.strlen(cmd.output_path) > 0
+		then
+		  S=stream.STREAM(cmd.output_path, "w")
+		  if S ~= nil
+		   then
+		   S:writeln(item.value.."\n")
+		   S:close()
+		  end
+		else
 		Term:puts(item.value .. "\n")
-		if to_clipboard == true then ToClipboard(item.value, use_osc52) end
-		if qr_code == true then DisplayQRCode(item.value) end
-		if show_details==true
+		end
+
+		if cmd.to_clipboard == true then ToClipboard(item.value, cmd.osc52_clip) end
+		if cmd.qr_code == true then DisplayQRCode(item.value) end
+		if cmd.show_details==true
 		then
 		   Term:puts("updated: " .. item.updated .."\n")
 		   Term:puts("notes: ".. item.notes .."\n")
 		end
-	else ErrorMsg("key not found in lockbox")
+	else ui:error("key not found in lockbox")
 	end
 end
 
@@ -125,10 +137,10 @@ box=lockboxes:find(cmd.box)
 if box ~= nil
 then
 	if box:load() == true
-	then GetDataFromBox(box, cmd.key, false, cmd.to_clipboard, cmd.qr_code, cmd.osc52_clip)
-	else ErrorMsg("incorrect password")
+	then GetDataFromBox(box, cmd.key, cmd)
+	else ui:error("incorrect password")
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user())
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -150,7 +162,7 @@ then
 			Term:puts(item.value.."\n")
 		end
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user().."'")
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -180,7 +192,7 @@ then
 	do
 		Term:puts(key.."\n")
 	end
-else ErrorMsg("no such lockbox '"..cmd.box.."' for user '"..process.user().."'")
+else ui:error_no_lockbox(cmd.box)
 end
 
 end
@@ -204,7 +216,7 @@ local S, str, toks
 
 if strutil.strlen(cmd.path) == 0
 then
-ErrorMsg("import command must have format: treasury.lua import <lockbox> <import path>")
+ui:error("import command must have format: treasury.lua import <lockbox> <import path>")
 return
 end
 
@@ -221,7 +233,7 @@ local i
 
 for i=2,#cmd_line,1
 do
-if lockboxes:sync(cmd_line[i]) ~= true then ErrorMsg("incorrect password") end
+if lockboxes:sync(cmd_line[i]) ~= true then ui:error("incorrect password") end
 end
 end
 
@@ -248,6 +260,7 @@ if config.resist_strace==true then str=str.."resist_strace " end
 process.configure(str)
 
 --next setup the terminal. We do this early as other functions need a terminal to write to
+ui=UI_Init()
 Term=terminal.TERM(nil, "wheelmouse rawkeys save")
 
 --setup the 'lockboxes' system that actually stores our data
@@ -259,6 +272,7 @@ sync=SyncInit()
 hosts=HostsInit()
 
 end
+
 
 
 

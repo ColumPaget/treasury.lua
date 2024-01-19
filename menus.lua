@@ -2,7 +2,7 @@ function DisplayLockboxItem(box, key)
 local value, str, Menu
 
 Term:clear()
-TitleBar("~B~wContents of '"..box.name..":"..key.."'")
+ui:title_bar("~B~wContents of '"..box.name..":"..key.."'")
 
 Menu=terminal.TERMMENU(Term, 1, 2, Term:width() -2, 4)
 Menu:add("to clipboard", "clipboard")
@@ -34,7 +34,7 @@ local box, key, value, str
 box=lockboxes:find(name)
 if box:load() ~= true 
 then
- ErrorMsg("incorrect password.")
+ ui:error("incorrect password.")
  box.password=nil
  return false 
 end
@@ -43,7 +43,7 @@ while true
 do
 Term:clear()
 Menu:clear()
-TitleBar("~B~wLockbox: '"..box.name.."'")
+ui:title_bar("~B~wLockbox: '"..box.name.."'")
 
 Menu:add("Add new item", "add")
 Menu:add("Add new item with editor", "add-editor")
@@ -55,8 +55,8 @@ end
 str=Menu:run()
 if strutil.strlen(str) > 0 
 then 
-	if str=="add" then QueryNewItem(box)
-	elseif str=="add-editor" then QueryNewItemWithEditor(box)
+	if str=="add" then ui:new_item(box)
+	elseif str=="add-editor" then ui:new_item_editor(box)
 	else
 		DisplayLockboxItem(box, str) 
   end

@@ -19,7 +19,7 @@ config.set_bool=function(self, name, value)
 if value=="true" or value=="Y" or value=="y" or value=="yes" then self:set(name, "y")
 elseif value=="false" or value=="N" or value=="n" or value=="no" then self:set(name, "n")
 else
-	ErrorMsg("Invalid value '"..value.."' for boolean setting '"..name.."'. Valid values: 'true','false','Y','N','y','n'")
+	ui:error("Invalid value '"..value.."' for boolean setting '"..name.."'. Valid values: 'true','false','Y','N','y','n'")
 	return false
 end
 
@@ -42,7 +42,7 @@ do
 	end
 end
 
-ErrorMsg("Invalid value '" .. value .. " for setting '" .. name .. "'. Valid values:  " .. str)
+ui:error("Invalid value '" .. value .. " for setting '" .. name .. "'. Valid values:  " .. str)
 
 return false
 end
@@ -110,7 +110,7 @@ config.change=function(self, name, value)
 
 if self.items[name] == nil 
 then
-	ErrorMsg("no such config setting: '"..name.."'")
+	ui:error("no such config setting: '"..name.."'")
 	return false
 elseif name=="mlock" or name=="scrub_files" or name=="syslog" or name=="keyring"
 then

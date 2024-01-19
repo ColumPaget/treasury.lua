@@ -65,7 +65,7 @@ end
 importer.open_zip=function(self, path)
 local str, Proc, PtyS, S, password, doc
 
-password=QueryPassword("password for encrypted zip file:")
+password=ui:ask_password("password for encrypted zip file:")
 str="unzip -p " .. path 
 Proc=process.PROCESS(str, "ptystream")
 
@@ -87,7 +87,7 @@ end
 importer.open_7zip=function(self, path)
 local str, password, Proc, PtyS
 
-password=QueryPassword("password for encrypted 7zip file: ")
+password=ui:ask_password("password for encrypted 7zip file: ")
 
 str="7za x " .. path .. " -so"
 Proc=process.PROCESS(str, "ptystream")
@@ -107,7 +107,7 @@ end
 importer.open_ssldecrypt=function(self, path)
 local Proc, password, S
 
-password=QueryPassword("password for ssl encrypted import file:")
+password=ui:ask_password("password for ssl encrypted import file:")
 Proc=openssl:open_decrypt(password, path) 
 
 S=Proc:get_stream()
@@ -148,14 +148,18 @@ end
 
 if S ~= nil 
 then
-doc=S:readdoc()
-doctype=self:import_type(doc, import_type)
-S:close()
+  doc=S:readdoc()
+  if strutil.strlen(doc) > 0 then doctype=self:import_type(doc, import_type)
+  else ui:error("No data to import. Wrong password?")
+  end
+  S:close()
+else
+  ui:error("Failed to open import file. Wrong password?")
 end
 
 
 if doctype == "json" then self:import_json(box, doc)
---elseif doctype=="xml" then self:import_xml(box, doc)
+elseif doctype=="xml" then self:import_xml(box, doc)
 else self:import_csv(box, doc)
 end
 

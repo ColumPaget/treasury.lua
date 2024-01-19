@@ -46,11 +46,13 @@ local str, key, item
 
 if Out==nil then Out=stream.STREAM("stdout:") end
 
+Out:writeln("{\n")
 for key, item in pairs(items)
 do
-str="{\n" .. self:json_item("name", item.name) .. self:json_item("value", item.value) .. self:json_item("notes", item.notes) ..  self:json_item("updated", item.updated) .. "}\n"
+str="{\n" .. self:json_item("name", item.name) .. self:json_item("value", item.value) .. self:json_item("notes", item.notes) ..  self:json_item("updated", item.updated) .. "},\n"
 Out:writeln(str)
 end
+Out:writeln("}\n")
 
 Out:flush()
 end
@@ -59,7 +61,7 @@ end
 exporter.openzip=function(self, export_path)
 local str, password, Proc, PtyS
 
-password=QueryPassword("password for exported zip file: ")
+password=ui:ask_password("password for exported zip file: ")
 
 str="zip " .. export_path .. " -e -"
 Proc=process.PROCESS(str, "rw ptystream ptystderr")
@@ -79,7 +81,7 @@ end
 exporter.open7zip=function(self, export_path)
 local str, password, Proc, PtyS
 
-password=QueryPassword("password for exported 7zip file: ")
+password=ui:ask_password("password for exported 7zip file: ")
 
 str="7za a " .. export_path .. " -p -si"
 print(str)
@@ -104,7 +106,7 @@ end
 exporter.open_sslencrypt=function(self, export_path)
 local password, Proc
 
-password=QueryPassword("password for exported openssl encrypted file: ")
+password=ui:ask_password("password for exported openssl encrypted file: ")
 Proc=openssl:open_encrypt(password, export_path)
 
 return Proc
@@ -177,7 +179,7 @@ local items
 box=lockboxes:find(cmd.box)
 if box==nil
 then
-ErrorMsg("ERROR: no such lockbox '"..cmd.box.."'")
+ui:error("ERROR: no such lockbox '"..cmd.box.."'")
 return
 end
 

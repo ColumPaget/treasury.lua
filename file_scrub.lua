@@ -17,11 +17,11 @@ then
 	end
 	S:close()
 else
-	ErrorMsg("failed to scrub/overwrite: ".. path)
+	ui:error("failed to scrub/overwrite: ".. path)
 end
 
 end
 
 filesys.unlink(path)
-if filesys.exists(path) == true then ErrorMsg("failed to delete: ".. path) end
+if filesys.exists(path) == true then ui:error("failed to delete: ".. path) end
 end

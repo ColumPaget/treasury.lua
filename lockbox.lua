@@ -18,7 +18,7 @@ else lockbox.path=path
 end
 
 
--- fron here on is member functions of 'lockbox'
+-- from here on is member functions of 'lockbox'
 
 lockbox.saveencrypted=function(self, data, Dest)
 local str, Proc, S
@@ -42,15 +42,21 @@ end
 end
 
 
-lockbox.save=function(self, do_sync)
-local str, S, key, item
+lockbox.save_fmt_item=function(self, name, value)
+return(name .. "=\"" .. strutil.quoteChars(value, "|\r\n\"")  .. "\" ")
+end
 
-if strutil.strlen(self.password) == 0 then self.password=QueryPassword("Password for "..self.name..": ~>") end
+
+lockbox.save=function(self, do_sync)
+local str, S, key, item, name, value
+
+if strutil.strlen(self.password) == 0 then self.password=ui:ask_password("Password for "..self.name..": ~>") end
 
 filesys.mkdirPath(self.path)
 S=stream.STREAM(self.path, "w")
 if S ~= nil
 then
+	--save lockbox file header
 	self.filefmt="kv"
 	self.version=self.version + 1
 	S:writeln("name:"..self.name.."\n")
@@ -64,7 +70,12 @@ then
 	str=""
 	for key,item in pairs(self.items)
 	do
-		str=str .. key .. " updated=\"" .. item.updated .. "\" value=\"" .. strutil.quoteChars(item.value, "\n\"") .. "\" notes=\"" .. strutil.quoteChars(item.notes, "\n\"") ..  "\"\n"
+		str=str .. key .. " "
+		for name,value in pairs(item)
+		do
+		if name ~= "name" then str=str..self:save_fmt_item(name, value) end
+		end
+		str=str ..  "\n"
 	end
 
 	self:saveencrypted(str, S)
@@ -77,32 +88,42 @@ end
 
 
 
+lockbox.add_item=function(self, item)
+if strutil.strlen(item.updated) == 0 then item.updated=time.format("%Y/%m/%dT%H:%M:%S") end
 
-lockbox.add=function(self, key, value, notes, updated)
+self.items[item.name]=item
+end
+
+
+
+lockbox.add=function(self, name, value, notes, updated, item_type)
 local item
 
-key=strutil.quoteChars(key, "|")
+name=strutil.quoteChars(name, "|")
 
 item={}
-if strutil.strlen(updated) == 0 then item.updated=time.format("%Y/%m/%dT%H:%M:%S") 
-else item.updated=updated end
+if item.type ~= nil then item.type=item_type
+else item.type=""
+end
 
-item.name=key
-item.value=strutil.quoteChars(value, "\r\n|")
-item.notes=strutil.quoteChars(notes, "\r\n|")
+item.type=item_type 
+item.name=name
+item.value=value
+item.notes=notes
+item.updated=updated
 
-self.items[key]=item
+self:add_item(item)
 end
 
 
 
 
 lockbox.parse_kv=function(self, data, item)
-local toks, key
+local toks, key, str
 
 toks=strutil.TOKENIZER(data, "=", "Q")
 key=toks:next()
-item[key]=strutil.unQuote(toks:next())
+if strutil.strlen(key) > 0 then item[key]=strutil.unQuote(toks:next()) end
 end
 
 
@@ -110,6 +131,11 @@ lockbox.add_kv_item=function(self, data)
 local toks, tok 
 local item={}
 
+--these will get overwritten if they exist in data
+item.type=""
+item.updated=time.format("%Y/%m/%dT%H:%M:%S") 
+
+-- go through data parsing name/value pairs
 toks=strutil.TOKENIZER(data, "\\S", "Q")
 item.name=toks:next()
 tok=toks:next()
@@ -119,7 +145,7 @@ self:parse_kv(tok, item)
 tok=toks:next()
 end
 
-self:add(item.name, item.value, item.notes, item.updated)
+self.items[item.name]=item
 end
 
 
@@ -242,7 +268,7 @@ self:read_info(S)
 if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" then self.password=keyring:get(self.name) end
 if strutil.strlen(self.password) == 0 
 then
-	self.password=QueryPassword("Password for "..self.name..": ~>", self.passhint) 
+	self.password=ui:ask_password("Password for "..self.name..": ~>", self.passhint) 
 	queried_password=true
 end
 
