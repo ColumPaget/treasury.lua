@@ -20,7 +20,11 @@ you will need swig (http://www.swig.org) installed to compile libUseful-lua
 
 the distribution comes as a load of .lua files that are compiled into a single 'treasury.lua' file using 'make'. A premade 'treasury.lua' is provided. You can copy this to anywhere in your path and run it with lua (`lua <path>`, e.g `lua /usr/local/bin`), or else use linux's 'binfmt' system to invoke lua for lua scripts.
 
-'make install' copies treasury.lua to /usr/local/bin
+
+`make check` runs various checks that features are working. You don't normally need to run this.
+`make install` copies treasury.lua to /usr/local/bin, you can change the prefix with, for example, `make install PREFIX=/usr`
+`make user_install` copies treasury.lua to ~/bin ('bin' under the user's home directory)
+
 
 ## Usage
 
@@ -35,16 +39,21 @@ actions:
    add [lockbox] [key] [value]             add a key/value pair to a lockbox
    add [lockbox] [key] -g                  generate a 32bit random string, and add it to a lockbox
    add [lockbox] [key] -generate           generate a 32bit random string, and add it to a lockbox
-   add [lockbox] [key] -glen <len>         generate a random string of length 'len', and add it to a lockbox
+   add [lockbox] [key] -glen <len>         generate a random string, and add it to a lockbox
    del [lockbox] [key]                     remove a key/value pair from a lockbox
    rm  [lockbox] [key]                     remove a key/value pair from a lockbox
    get [lockbox] [key]                     get the value matching 'key' in a lockbox
-   get [lockbox] [key] -o <path>           get the value matching 'key' in a lockbox, and write to 'path'.
-   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox and put it to the system clipboard
-   get [lockbox] [key] -qr                 get the value matching 'key' in a lockbox and display it as a qr code
-   find [lockbox] [search pattern]         find key/value pairs matching 'search pattern'
+   get [lockbox] [key] -o <path>           get the value matching 'key' in a lockbox, and write it to <path>
+   get [lockbox] [key] -qr                 get the value matching 'key' in a lockbox, and display as qr code
+   get [lockbox] [key] -qr -o <path>       get the value matching 'key' in a lockbox, and write as a qr code PNG to <path>
+   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard
+   get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command
    entry [lockbox]                         enter 'data entry' mode for localbox
    shell [lockbox]                         enter 'shell' mode for localbox
+   sync [path]                             sync key/value pairs from a lockbox file
+   chpw [box]                              change password for a lockbox
+   find [lockbox] [search pattern]         find key/value pairs matching 'search pattern'
+   sync [path]                             sync key/value pairs from a lockbox file
    import [lockbox] [path]                 import key/value pairs from a file
    export [lockbox] [path]                 export key/value pairs to a file
    export [lockbox] [path] -csv            export key/value pairs from a csv file
@@ -56,9 +65,11 @@ actions:
    export [lockbox] [path] -7zcsv          export key/value pairs from a 7zipped csv file (with password)
    export [lockbox] [path] -7zxml          export key/value pairs from a 7zipped xml file (with password)
    export [lockbox] [path] -7zjson         export key/value pairs from a 7zipped json file (with password)
-   sync [path]                             sync key/value pairs from a lockbox file
    show-config                             print out application config
    config-set [name] [value]               change a config value
+   version                                 print program version
+   -version                                print program version
+   --version                               print program version
    --help                                  print help
    -help                                   print help
    help                                    print help

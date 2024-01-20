@@ -1,8 +1,10 @@
 
-function DisplayQRCode(value)
+function DisplayQRCode(value, output_path)
 local S, str, path, cmd
 
-path="/tmp/.treasury_qrcode.png"
+if strutil.strlen(output_path) > 0 then path=output_path
+else path="/tmp/.treasury_qrcode.png"
+end
 
 cmd=FindCmd(config:get("qr_cmd"))
 if cmd ~= nil
@@ -15,9 +17,15 @@ then
 	str=S:readln()
 	S:close()
 
-	cmd=FindCmd(config:get("iview_cmd"))
-	if cmd ~= nil then os.execute(cmd .. " " .. path) end
-	ScrubFile(path)
+  -- if output_path is set, then we just write the png file to that path,
+	-- we don't display it, and we don't scrub/delete the file
+	if strutil.strlen(output_path) ==0
+	then
+  	cmd=FindCmd(config:get("iview_cmd"))
+  	if cmd ~= nil then os.execute(cmd .. " " .. path) end
+  	ScrubFile(path)
+	end
+
 end
 end
 

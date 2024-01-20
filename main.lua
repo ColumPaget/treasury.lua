@@ -1,5 +1,5 @@
 Mode="cli"
-Version="1.6"
+Version="1.7"
 
 
 function NewLockbox(cmd)
@@ -105,27 +105,9 @@ local item
 	Term:puts("\n")
 	if item ~= nil 
 	then 
-
-		if strutil.strlen(cmd.output_path) > 0
-		then
-		  S=stream.STREAM(cmd.output_path, "w")
-		  if S ~= nil
-		   then
-		   S:writeln(item.value.."\n")
-		   S:close()
-		  end
-		else
-		Term:puts(item.value .. "\n")
-		end
-
-		if cmd.to_clipboard == true then ToClipboard(item.value, cmd.osc52_clip) end
-		if cmd.qr_code == true then DisplayQRCode(item.value) end
-		if cmd.show_details==true
-		then
-		   Term:puts("updated: " .. item.updated .."\n")
-		   Term:puts("notes: ".. item.notes .."\n")
-		end
-	else ui:error("key not found in lockbox")
+    OutputItem(item, cmd)
+	else 
+    ui:error("key not found in lockbox")
 	end
 end
 

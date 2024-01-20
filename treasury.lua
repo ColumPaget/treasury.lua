@@ -281,10 +281,12 @@ local path, S, str, cmd
 end
 
 
-function DisplayQRCode(value)
+function DisplayQRCode(value, output_path)
 local S, str, path, cmd
 
-path="/tmp/.treasury_qrcode.png"
+if strutil.strlen(output_path) > 0 then path=output_path
+else path="/tmp/.treasury_qrcode.png"
+end
 
 cmd=FindCmd(config:get("qr_cmd"))
 if cmd ~= nil
@@ -297,9 +299,15 @@ then
 	str=S:readln()
 	S:close()
 
-	cmd=FindCmd(config:get("iview_cmd"))
-	if cmd ~= nil then os.execute(cmd .. " " .. path) end
-	ScrubFile(path)
+  -- if output_path is set, then we just write the png file to that path,
+	-- we don't display it, and we don't scrub/delete the file
+	if strutil.strlen(output_path) ==0
+	then
+  	cmd=FindCmd(config:get("iview_cmd"))
+  	if cmd ~= nil then os.execute(cmd .. " " .. path) end
+  	ScrubFile(path)
+	end
+
 end
 end
 
@@ -1976,6 +1984,39 @@ if cmd.type=="export" and strutil.strlen(cmd.import_type) == 0 then cmd.import_t
 return(cmd)
 end
 
+function OutputItemText(item, cmd)
+local S
+
+		-- if cmd.qr_code is set, then we will write the QR code to the output path
+		-- not the text output
+		if cmd.qr_code == false and strutil.strlen(cmd.output_path) > 0
+		then
+		  S=stream.STREAM(cmd.output_path, "w")
+		  if S ~= nil
+		  then
+		   S:writeln(item.value.."\n")
+		   S:close()
+		  end
+		else
+		Term:puts(item.value .. "\n")
+		end
+end
+
+
+function OutputItem(item, cmd)
+
+		if cmd.to_clipboard == true then ToClipboard(item.value, cmd.osc52_clip) end
+		if cmd.qr_code == true then DisplayQRCode(item.value, cmd.output_path) end
+
+    OutputItemText(item, cmd)
+		if cmd.show_details==true
+		then
+		   Term:puts("updated: " .. item.updated .."\n")
+		   Term:puts("notes: ".. item.notes .."\n")
+		end
+
+end
+
 function ShellCreate()
 local shell={}
 
@@ -2153,7 +2194,9 @@ print("   add [lockbox] [key] -glen <len>         generate a random string, and 
 print("   del [lockbox] [key]                     remove a key/value pair from a lockbox")
 print("   rm  [lockbox] [key]                     remove a key/value pair from a lockbox")
 print("   get [lockbox] [key]                     get the value matching 'key' in a lockbox")
+print("   get [lockbox] [key] -o <path>           get the value matching 'key' in a lockbox, and write it to <path>")
 print("   get [lockbox] [key] -qr                 get the value matching 'key' in a lockbox, and display as qr code")
+print("   get [lockbox] [key] -qr -o <path>       get the value matching 'key' in a lockbox, and write as a qr code PNG to <path>")
 print("   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard")
 print("   get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command")
 print("   entry [lockbox]                         enter 'data entry' mode for localbox")
@@ -2192,7 +2235,7 @@ end
 
 
 Mode="cli"
-Version="1.6"
+Version="1.7"
 
 
 function NewLockbox(cmd)
@@ -2298,27 +2341,9 @@ local item
 	Term:puts("\n")
 	if item ~= nil 
 	then 
-
-		if strutil.strlen(cmd.output_path) > 0
-		then
-		  S=stream.STREAM(cmd.output_path, "w")
-		  if S ~= nil
-		   then
-		   S:writeln(item.value.."\n")
-		   S:close()
-		  end
-		else
-		Term:puts(item.value .. "\n")
-		end
-
-		if cmd.to_clipboard == true then ToClipboard(item.value, cmd.osc52_clip) end
-		if cmd.qr_code == true then DisplayQRCode(item.value) end
-		if cmd.show_details==true
-		then
-		   Term:puts("updated: " .. item.updated .."\n")
-		   Term:puts("notes: ".. item.notes .."\n")
-		end
-	else ui:error("key not found in lockbox")
+    OutputItem(item, cmd)
+	else 
+    ui:error("key not found in lockbox")
 	end
 end
 
