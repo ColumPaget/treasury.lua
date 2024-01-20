@@ -126,8 +126,7 @@ end
 
 
 config:set("clip_cmd", "xsel -i -p -b,xclip -selection clipboard,pbcopy")
-config:set("qr_cmd", "qrencode -o")
-config:set("iview_cmd", "imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g")
+config:set("iview_cmd", "convert,imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g,convert")
 config:set("edit_cmd", "vim,vi,pico,nano")
 config:set("digest", "sha256")
 config:set("algo", "aes-256-cbc")

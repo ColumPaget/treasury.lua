@@ -21,6 +21,7 @@ do
 		if value=="-clip" or value== "-clipboard" then cmd.to_clipboard=true
 		elseif value=="-osc52" then cmd.to_clipboard=true; cmd.osc52_clip=true
 		elseif value=="-qr" then cmd.qr_code=true
+		elseif value=="-totp" then cmd.reformat="totp"
 		elseif value=="-csv" then cmd.import_type="csv"
 		elseif value=="-xml" then cmd.import_type="xml"
 		elseif value=="-json" then cmd.import_type="json"

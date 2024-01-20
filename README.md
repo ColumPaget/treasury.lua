@@ -15,6 +15,9 @@ libUseful-lua    http://github.com/ColumPaget/libUseful-lua  at least version 3.
 
 you will need swig (http://www.swig.org) installed to compile libUseful-lua
 
+if you want to use qr-code output, the utility qrencode will need to be installed.
+
+
 
 ## Build/install
 
@@ -48,6 +51,7 @@ actions:
    get [lockbox] [key] -qr -o <path>       get the value matching 'key' in a lockbox, and write as a qr code PNG to <path>
    get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard
    get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command
+   get [lockbox] [key] -totp               get the value matching 'key' in a lockbox, use it to generate a google-authenticator compatible TOTP code.
    entry [lockbox]                         enter 'data entry' mode for localbox
    shell [lockbox]                         enter 'shell' mode for localbox
    sync [path]                             sync key/value pairs from a lockbox file
@@ -85,7 +89,6 @@ the 'show-config' and 'config-set' commands allow manipulation of a number of ap
 
 ```
 clip_cmd            xsel -i -p -b,xclip -selection clipboard,pbcopy
-qr_cmd              qrencode -o
 iview_cmd           imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g
 edit_cmd            vim,vi,pico,nano
 syslog              y
@@ -101,8 +104,6 @@ keyring_timeout     3600
 
 
 The 'clip_cmd' setting is a comma separated list of commands that can be used to set the system clipboard. It is assumed these commands take input on stdin. treasury.lua will use the first application in this list that it finds installed on the system.
-
-The 'qr_cmd' setting is a comma separated list of commands that can be used to generate qr codes. It is assumed these commands take input on stdin. treasury.lua will use the first application in this list that it finds installed on the system.
 
 The 'iview_cmd' settings is a comma separated list of image viewer commands to use when displaying qr codes.
 
@@ -179,6 +180,11 @@ The type of file to export to is specified by the `-csv` `-xml` `-json` `-zcsv` 
 ## Syncing
 
 treasury.lua has a simple syncing system. When changes are made to a lockbox that lockbox is copied to '~/.treasury/sync_out'. Whenever a lockbox is opened, treasury.lua checks in 'sync_in' for any files that it should import to update the lockbox. This means that, if files are pushed from sync_out using rsync or somekind of FTP system, to a common storage server, and if they are regularly synced from that server to sync_in, then multiple instances of treasury.lua can stay in sync by this means. Each file droppend in 'sync_out' has the hostname included, ensuring that different systems should not overwrite each other's files. As the files are themselves copies of lockboxes, they are encrypted as the lockboxes are. However, this does mean that the same password has to be used for the same lockbox on all systems that are synced this way.
+
+## TOTP
+
+The `-totp` option to the 'get' command will calculate a TOTP code from the stored value, and display that instead of the stored value itself. This requires the stored value to be a base32 encoded secret. The TOTP calculation is google-compatible (6 digits, period 30 seconds).
+
 
 ## Attacks and Vulnerabilities
 

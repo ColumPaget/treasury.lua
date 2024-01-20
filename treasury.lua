@@ -137,8 +137,7 @@ end
 
 
 config:set("clip_cmd", "xsel -i -p -b,xclip -selection clipboard,pbcopy")
-config:set("qr_cmd", "qrencode -o")
-config:set("iview_cmd", "imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g")
+config:set("iview_cmd", "convert,imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g,convert")
 config:set("edit_cmd", "vim,vi,pico,nano")
 config:set("digest", "sha256")
 config:set("algo", "aes-256-cbc")
@@ -281,38 +280,58 @@ local path, S, str, cmd
 end
 
 
+function QRCodeCreate(value, path, args)
+local cmd, S, str
+
+cmd=FindCmd("qrencode")
+if cmd ~= nil
+then
+	str="cmd:" .. cmd 
+	if strutil.strlen(path) > 0 then str=str .. " -o " .. path end
+	if strutil.strlen(args) > 0 then str=str .. " " ..args end
+
+  S=stream.STREAM(str)
+  if S ~= nil
+  then
+  	S:writeln(value)
+  	S:commit()
+  	str=S:readdoc()
+		print(str)
+  	S:close()
+  end
+end
+
+end
+
+
+
 function DisplayQRCode(value, output_path)
-local S, str, path, cmd
+local S, str, path, cmd, viewer
 
 if strutil.strlen(output_path) > 0 then path=output_path
 else path="/tmp/.treasury_qrcode.png"
 end
 
-cmd=FindCmd(config:get("qr_cmd"))
-if cmd ~= nil
+viewer=FindCmd(config:get("iview_cmd"))
+
+if strutil.strlen(viewer) == 0 then QRCodeCreate(value, "-", " -t ANSI256")
+else QRCodeCreate(value, path)
+end
+
+-- if output_path is set, then we just write the png file to that path,
+-- we don't display it, and we don't scrub/delete the file
+if strutil.strlen(output_path) ==0 and strutil.strlen(viewer) > 0
 then
-S=stream.STREAM("cmd:" .. cmd .. " " .. path)
-if S ~= nil
-then
-	S:writeln(value)
-	S:commit()
-	str=S:readln()
-	S:close()
+  str=viewer .. " " .. path
+  if viewer=="convert" then str=str.." sixel:-" end 
 
-  -- if output_path is set, then we just write the png file to that path,
-	-- we don't display it, and we don't scrub/delete the file
-	if strutil.strlen(output_path) ==0
-	then
-  	cmd=FindCmd(config:get("iview_cmd"))
-  	if cmd ~= nil then os.execute(cmd .. " " .. path) end
-  	ScrubFile(path)
-	end
-
+ 	if viewer ~= nil then os.execute(str) end
+ 	ScrubFile(path)
 end
+
 end
 
 
-end
 
 function FindClipboardCmd()
 local toks, tok, cmd
@@ -323,7 +342,7 @@ return str
 end
 
 
-function RunClipboardCmd(cmd)
+function RunClipboardCmd(cmd, text)
 local proc, S
 
   proc=process.PROCESS(cmd)
@@ -350,7 +369,7 @@ then
 elseif strutil.strlen(cmd) > 0
 then
    if cmd == "xterm" then Term:xterm_set_clipboard(text)
-   else RunClipboardCmd(cmd)
+   else RunClipboardCmd(cmd, text)
    end
 end
 
@@ -1935,6 +1954,7 @@ do
 		if value=="-clip" or value== "-clipboard" then cmd.to_clipboard=true
 		elseif value=="-osc52" then cmd.to_clipboard=true; cmd.osc52_clip=true
 		elseif value=="-qr" then cmd.qr_code=true
+		elseif value=="-totp" then cmd.reformat="totp"
 		elseif value=="-csv" then cmd.import_type="csv"
 		elseif value=="-xml" then cmd.import_type="xml"
 		elseif value=="-json" then cmd.import_type="json"
@@ -1984,8 +2004,8 @@ if cmd.type=="export" and strutil.strlen(cmd.import_type) == 0 then cmd.import_t
 return(cmd)
 end
 
-function OutputItemText(item, cmd)
-local S
+function OutputItemText(value, comment, cmd)
+local S, str
 
 		-- if cmd.qr_code is set, then we will write the QR code to the output path
 		-- not the text output
@@ -1994,26 +2014,39 @@ local S
 		  S=stream.STREAM(cmd.output_path, "w")
 		  if S ~= nil
 		  then
-		   S:writeln(item.value.."\n")
+		   S:writeln(value.."\n")
 		   S:close()
 		  end
 		else
-		Term:puts(item.value .. "\n")
+		str=value
+		if strutil.strlen(comment) > 0 then str=str .. " - "..comment end
+		Term:puts(str .. "\n")
 		end
 end
 
 
 function OutputItem(item, cmd)
+local value, comment
 
-		if cmd.to_clipboard == true then ToClipboard(item.value, cmd.osc52_clip) end
-		if cmd.qr_code == true then DisplayQRCode(item.value, cmd.output_path) end
+		value=item.value
+		comment=item.notes
 
-    OutputItemText(item, cmd)
+		if cmd.reformat == "totp"
+		then 
+			value=hash.totp("sha1", item.value, "base32", 6, 30) 
+			comment="valid for: " .. string.format("%d", 30 - time.secs() % 30).." seconds"
+		end
+
+		
+    OutputItemText(value, comment, cmd)
 		if cmd.show_details==true
 		then
 		   Term:puts("updated: " .. item.updated .."\n")
-		   Term:puts("notes: ".. item.notes .."\n")
 		end
+
+		if cmd.to_clipboard == true then ToClipboard(value, cmd.osc52_clip) end
+		if cmd.qr_code == true then DisplayQRCode(value, cmd.output_path) end
+
 
 end
 
@@ -2199,6 +2232,7 @@ print("   get [lockbox] [key] -qr                 get the value matching 'key' i
 print("   get [lockbox] [key] -qr -o <path>       get the value matching 'key' in a lockbox, and write as a qr code PNG to <path>")
 print("   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard")
 print("   get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command")
+print("   get [lockbox] [key] -totp               get the value matching 'key' in a lockbox, and use it to calculate a totp code")
 print("   entry [lockbox]                         enter 'data entry' mode for localbox")
 print("   shell [lockbox]                         enter 'shell' mode for localbox")
 print("   sync [path]                             sync key/value pairs from a lockbox file")

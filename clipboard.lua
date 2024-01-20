@@ -8,7 +8,7 @@ return str
 end
 
 
-function RunClipboardCmd(cmd)
+function RunClipboardCmd(cmd, text)
 local proc, S
 
   proc=process.PROCESS(cmd)
@@ -35,7 +35,7 @@ then
 elseif strutil.strlen(cmd) > 0
 then
    if cmd == "xterm" then Term:xterm_set_clipboard(text)
-   else RunClipboardCmd(cmd)
+   else RunClipboardCmd(cmd, text)
    end
 end
 

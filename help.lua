@@ -18,6 +18,7 @@ print("   get [lockbox] [key] -qr                 get the value matching 'key' i
 print("   get [lockbox] [key] -qr -o <path>       get the value matching 'key' in a lockbox, and write as a qr code PNG to <path>")
 print("   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard")
 print("   get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command")
+print("   get [lockbox] [key] -totp               get the value matching 'key' in a lockbox, and use it to calculate a totp code")
 print("   entry [lockbox]                         enter 'data entry' mode for localbox")
 print("   shell [lockbox]                         enter 'shell' mode for localbox")
 print("   sync [path]                             sync key/value pairs from a lockbox file")

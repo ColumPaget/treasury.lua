@@ -1,6 +1,12 @@
+1.8 (2024-01-20)
+----------------
+  * support ANSI output for qrcodes if no image viewer
+  * TOTP generator
+  * fix clipboard push
+
 1.7 (2024-01-20)
 ----------------
-  * output qr-code to PNG file using '-o' option
+  * output qr-code to png file using '-o' option
   * add 'make check' 'make install' 'make user_install' to makefile
 
 1.6 (2024-01-19)
