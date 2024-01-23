@@ -1,5 +1,5 @@
 Mode="cli"
-Version="1.7"
+Version="1.10"
 
 
 function NewLockbox(cmd)

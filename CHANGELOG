@@ -1,3 +1,6 @@
+1.10 (2024-01-23)
+  * make clipboard work
+
 1.9 (2024-01-23)
   * show notes as well as just keynames in the 'list' command
   * add 'names' command to list just keynames

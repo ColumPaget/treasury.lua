@@ -351,7 +351,8 @@ local proc, S
 	S=proc:get_stream()
 	if S ~= nil
 	then
-		S:writeln(text)
+		S:writeln(text.."\n")
+		S:commit()
 		proc:wait_exit();
 	end
   end
