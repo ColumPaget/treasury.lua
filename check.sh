@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 TEST_DIR=/tmp/.treasury_make_check/
 
@@ -10,9 +10,9 @@ MD5=`md5sum "$1" | cut -d ' ' -f 1`
 
 if [ "$MD5" = "$2" ]
 then 
-				echo "$3 OKAY"
+	echo "$3 OKAY"
 else
-				echo "$3 FAILED"
+	echo "$3 FAILED"
 fi
 
 }

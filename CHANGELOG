@@ -1,3 +1,9 @@
+1.9 (2024-01-23)
+  * show notes as well as just keynames in the 'list' command
+  * add 'names' command to list just keynames
+  * fix 'del' and 'rm' commands
+  * beware non-bash /bin/sh for 'make check' check.sh
+
 1.8 (2024-01-20)
 ----------------
   * support ANSI output for qrcodes if no image viewer

@@ -37,7 +37,8 @@ usage: lua treasury.lua [action] [lockbox] [key] [value]
 
 actions:
    new [lockbox]                           create a new lockbox
-   list [lockbox]                          list keys in a lockbox
+   list [lockbox]                          list keys in a lockbox, along with their associated notes/comment
+   names [lockbox]                         list keys in a lockbox
    dump [lockbox]                          dump lockbox in plain text
    add [lockbox] [key] [value]             add a key/value pair to a lockbox
    add [lockbox] [key] -g                  generate a 32bit random string, and add it to a lockbox

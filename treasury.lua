@@ -2218,7 +2218,8 @@ print("treasury.lua stores key-value pairs in encrypted files called 'lockboxes'
 print("usage: lua treasury.lua [action] [lockbox] [key] [value]\n")
 print("actions:")
 print("   new [lockbox]                           create a new lockbox")
-print("   list [lockbox]                          list keys in a lockbox")
+print("   list [lockbox]                          list keys in a lockbox, and comments/notes associated with them")
+print("   names [lockbox]                         list keys in a lockbox")
 print("   dump [lockbox]                          dump lockbox in plain text")
 print("   add [lockbox] [key] [value]             add a key/value pair to a lockbox")
 print("   add [lockbox] [key] -g                  generate a 32bit random string, and add it to a lockbox")
@@ -2354,6 +2355,26 @@ end
 end
 
 
+
+function RemoveData(cmd)
+local box, item
+
+box=lockboxes:find(cmd.box)
+if box ~= nil
+then
+	if box:load() == true
+	then 
+	box:remove(cmd.key)
+	box:save()
+	else ui:error("incorrect password")
+	end
+else ui:error_no_lockbox(cmd.box)
+end
+
+
+end
+
+
 function DumpData(cmd)
 local str
 
@@ -2434,20 +2455,27 @@ end
 
 
 function ListLockboxContents(cmd)
-local box, key, value
+local box, key, item, str
+
 
 box=lockboxes:find(cmd.box)
 if box ~= nil 
 then
 	box:load()
-	for key,value in pairs(box.items)
+	for key,item in pairs(box.items)
 	do
-		Term:puts(key.."\n")
+		if cmd.type == "names" then Term:puts(key.."\n")
+		else 
+			str=key
+			if strutil.strlen(item.notes) > 0 then str=strutil.padto(str, ' ', 30) .." "..string.sub(item.notes,1,Term:width() - 32) end
+			Term:puts(str.."\n")
+		end	
 	end
 else ui:error_no_lockbox(cmd.box)
 end
 
 end
+
 
 function ListLockbox(cmd)
 
@@ -2534,8 +2562,9 @@ cmd=CommandLineParse(arg)
 
 if cmd.type == "new" then NewLockbox(cmd)
 elseif cmd.type == "add" or cmd.type=="set" then DepositData(cmd)
+elseif cmd.type == "del" or cmd.type=="rm" then RemoveData(cmd)
 elseif cmd.type == "entry" then EnterData(cmd)
-elseif cmd.type == "list" or type == "ls" then ListLockbox(cmd)
+elseif cmd.type == "list" or cmd.type == "ls" or cmd.type=="names" then ListLockbox(cmd)
 elseif cmd.type == "get"  then GetData(cmd)
 elseif cmd.type == "find"  then FindData(cmd)
 elseif cmd.type == "dump" then DumpData(cmd)
