@@ -47,6 +47,7 @@ do
 		elseif value=="-glen" then cmd.generate=tonumber(args[i+1]); args[i+1]=""
 		elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
 		elseif value=="-o" then cmd.output_path=args[i+1]; args[i+1]=""
+		elseif value=="-K" then config:set("keyring", "i")
 		elseif strutil.strlen(cmd.box)==0 then cmd.box=value
 		--from here on in we are treating the string not as a switch/option, but as data: paths, keynames, keyvalues, notes
 		elseif cmd.type == "import" then cmd.path=value

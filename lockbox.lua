@@ -274,7 +274,7 @@ end
 
 str=self:readencrypted(S:readdoc())
 
-if queried_password == true and strutil.strlen(str) > 0 and config:get("keyring") == "y" then keyring:set(self.name, self.password) end
+if queried_password == true and strutil.strlen(str) > 0 and config:get("keyring") ~= "n" then keyring:set(self.name, self.password) end
 S:close()
 end
 

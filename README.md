@@ -53,6 +53,7 @@ actions:
    get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard
    get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command
    get [lockbox] [key] -totp               get the value matching 'key' in a lockbox, use it to generate a google-authenticator compatible TOTP code.
+   get [lockbox] [key] -K                  use '-K' if you are using keyrings, but somehow have a bad key in your keyring.
    entry [lockbox]                         enter 'data entry' mode for localbox
    shell [lockbox]                         enter 'shell' mode for localbox
    sync [path]                             sync key/value pairs from a lockbox file
@@ -70,6 +71,9 @@ actions:
    export [lockbox] [path] -7zcsv          export key/value pairs from a 7zipped csv file (with password)
    export [lockbox] [path] -7zxml          export key/value pairs from a 7zipped xml file (with password)
    export [lockbox] [path] -7zjson         export key/value pairs from a 7zipped json file (with password)
+   export [lockbox] [path] -scsv           export key/value pairs from a openssl csv file (with password)
+   export [lockbox] [path] -sxml           export key/value pairs from a openssl xml file (with password)
+   export [lockbox] [path] -sjson          export key/value pairs from a openssl json file (with password)
    show-config                             print out application config
    config-set [name] [value]               change a config value
    version                                 print program version
@@ -126,6 +130,8 @@ The 'scrub_files' feature overwrites deleted files with random data. This was on
 
 The 'keyring' feature uses the linux keyring system. This requires keyutils/keyctl to be installed. When this boolen option is turned on ('y') it will store passwords in the kernel keyring system as they are typed in. After being stored, treasury.lua will not need to ask for the password going forwards, and will 'remember' it for that user, until that user logs out. treasury.lua will first try to store keys in the 'session' keyring, and if there isn't a session keyring, it will fall back to the  'user' keyring. The user keyring carries some dangers that anyone logged in as the user can get the password from the user keyring, even if they have a different login session. This feature is new and experimental, so it defaults to off ('n'). 
 
+Sometimes, somehow, you can get an incorrect key in your keyring. Use the '-K' option to disable getting from the keyring. treasury.lua will then ask for the password afresh, and store the new on in the keyring.
+
 The 'keyring_timeout' setting allows setting a timeout in seconds for passwords stored in the kernel keyring. If a given password is unused for longer than this time, then it will be deleted from the keyring. The default is one hour (3600 seconds).
 
 
@@ -174,7 +180,7 @@ openssl enc -d -a -md sha256 -aes-256-cbc -pbkdf2 -in secrets.scsv
 ```
 
 
-The type of file to export to is specified by the `-csv` `-xml` `-json` `-zcsv` `-zxml` `-zjson` `-7zcsv` `-7zxml` `-7zjson` `-scsv` `-sxml` and `-sjson` command-line options. If none of these are present, treasury will try to guess the fileetype from it's extension. For encrypted files the extentions have the forms `.zcsv` `.7zcsv` or `.scsv` etc.
+The type of file to export to is specified by the `-csv` `-xml` `-json` `-zcsv` `-zxml` `-zjson` `-7zcsv` `-7zxml` `-7zjson` `-scsv` `-sxml` and `-sjson` command-line options. If none of these are present, treasury will try to guess the file-type from it's extension. For encrypted files the extensions have the forms `.zcsv` `.7zcsv` or `.scsv` etc.
 
 
 

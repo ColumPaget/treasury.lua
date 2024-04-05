@@ -1,3 +1,7 @@
+1.11 (2024-04-05)
+  * added '-K' option to handle bad keys in the keyring
+  * added manpage
+
 1.10 (2024-01-23)
   * make clipboard work
 

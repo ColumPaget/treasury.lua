@@ -10,8 +10,13 @@ check:
 install:
 	-mkdir -p $(PREFIX)/bin
 	cp -f treasury.lua $(PREFIX)/bin
+	-mkdir -p $(PREFIX)/share/man/man1
+	cp -f treasury.lua.1 $(PREFIX)/share/man/man1
+
 
 user_install:
 	-mkdir -p ~/bin
 	cp -f treasury.lua ~/bin
+	-mkdir -p ~/.local/share/man/man1
+	cp treasury.lua.1 ~/.local/share/man/man1
 	

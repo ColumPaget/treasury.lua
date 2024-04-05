@@ -1119,7 +1119,7 @@ end
 
 str=self:readencrypted(S:readdoc())
 
-if queried_password == true and strutil.strlen(str) > 0 and config:get("keyring") == "y" then keyring:set(self.name, self.password) end
+if queried_password == true and strutil.strlen(str) > 0 and config:get("keyring") ~= "n" then keyring:set(self.name, self.password) end
 S:close()
 end
 
@@ -1981,6 +1981,7 @@ do
 		elseif value=="-glen" then cmd.generate=tonumber(args[i+1]); args[i+1]=""
 		elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
 		elseif value=="-o" then cmd.output_path=args[i+1]; args[i+1]=""
+		elseif value=="-K" then config:set("keyring", "i")
 		elseif strutil.strlen(cmd.box)==0 then cmd.box=value
 		--from here on in we are treating the string not as a switch/option, but as data: paths, keynames, keyvalues, notes
 		elseif cmd.type == "import" then cmd.path=value
@@ -2235,6 +2236,7 @@ print("   get [lockbox] [key] -qr -o <path>       get the value matching 'key' i
 print("   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard")
 print("   get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command")
 print("   get [lockbox] [key] -totp               get the value matching 'key' in a lockbox, and use it to calculate a totp code")
+print("   get [lockbox] [key] -K                  use '-K' if you are using keyrings, but somehow have the wrong key in your keyring")
 print("   entry [lockbox]                         enter 'data entry' mode for localbox")
 print("   shell [lockbox]                         enter 'shell' mode for localbox")
 print("   sync [path]                             sync key/value pairs from a lockbox file")
@@ -2271,7 +2273,7 @@ end
 
 
 Mode="cli"
-Version="1.7"
+Version="1.10"
 
 
 function NewLockbox(cmd)

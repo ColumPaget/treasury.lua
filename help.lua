@@ -20,6 +20,7 @@ print("   get [lockbox] [key] -qr -o <path>       get the value matching 'key' i
 print("   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard")
 print("   get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command")
 print("   get [lockbox] [key] -totp               get the value matching 'key' in a lockbox, and use it to calculate a totp code")
+print("   get [lockbox] [key] -K                  use '-K' if you are using keyrings, but somehow have the wrong key in your keyring")
 print("   entry [lockbox]                         enter 'data entry' mode for localbox")
 print("   shell [lockbox]                         enter 'shell' mode for localbox")
 print("   sync [path]                             sync key/value pairs from a lockbox file")
