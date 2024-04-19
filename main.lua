@@ -1,5 +1,5 @@
 Mode="cli"
-Version="1.11"
+Version="1.12"
 
 
 function NewLockbox(cmd)
@@ -252,6 +252,8 @@ end
 function TreasuryInit()
 local str=""
 
+process.setenv("LC_ALL", "C")
+process.setenv("LANG", "C")
 
 --setup config
 config=ConfigInit()

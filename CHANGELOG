@@ -1,3 +1,6 @@
+1.12 (2024-04-19)
+  * set LC_ALL and LANG environment variables to 'C' locale so that output of commands is in default language
+
 1.11 (2024-04-05)
   * added '-K' option to handle bad keys in the keyring
   * added manpage
