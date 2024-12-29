@@ -42,7 +42,7 @@ end
 if strutil.strlen(output_path) ==0 and strutil.strlen(viewer) > 0
 then
   str=viewer .. " " .. path
-  if viewer=="convert" then str=str.." sixel:-" end 
+  if filesys.basename(viewer) == "convert" then str=str.." sixel:-" end 
 
  	if viewer ~= nil then os.execute(str) end
  	ScrubFile(path)

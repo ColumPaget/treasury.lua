@@ -63,6 +63,7 @@ config.get=function(self, name)
 local str
 str=self.items[name]
 if str==nil then str="" end
+
 return str
 end
 
@@ -137,7 +138,7 @@ end
 
 
 config:set("clip_cmd", "xsel -i -p -b,xclip -selection clipboard,pbcopy")
-config:set("iview_cmd", "convert,imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g,convert")
+config:set("iview_cmd", "imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g,convert")
 config:set("edit_cmd", "vim,vi,pico,nano")
 config:set("digest", "sha256")
 config:set("algo", "aes-256-cbc")
@@ -163,7 +164,12 @@ local toks, tok, prog, path
 toks=strutil.TOKENIZER(cmd, "\\S")
 tok=toks:next()
 path=filesys.find(tok, process.getenv("PATH"))
-if strutil.strlen(path) > 0 then return(path .. " " ..toks:remaining()) end
+if strutil.strlen(path) > 0 
+then 
+tok=toks:remaining()
+if strutil.strlen(tok) > 0 then path=path .. " " .. tok end
+return(path)
+end
 
 return nil
 end
@@ -323,7 +329,7 @@ end
 if strutil.strlen(output_path) ==0 and strutil.strlen(viewer) > 0
 then
   str=viewer .. " " .. path
-  if viewer=="convert" then str=str.." sixel:-" end 
+  if filesys.basename(viewer) == "convert" then str=str.." sixel:-" end 
 
  	if viewer ~= nil then os.execute(str) end
  	ScrubFile(path)
@@ -2273,7 +2279,7 @@ end
 
 
 Mode="cli"
-Version="1.12"
+Version="1.13"
 
 
 function NewLockbox(cmd)

@@ -5,7 +5,12 @@ local toks, tok, prog, path
 toks=strutil.TOKENIZER(cmd, "\\S")
 tok=toks:next()
 path=filesys.find(tok, process.getenv("PATH"))
-if strutil.strlen(path) > 0 then return(path .. " " ..toks:remaining()) end
+if strutil.strlen(path) > 0 
+then 
+tok=toks:remaining()
+if strutil.strlen(tok) > 0 then path=path .. " " .. tok end
+return(path)
+end
 
 return nil
 end

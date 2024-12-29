@@ -1,14 +1,23 @@
+1.13 (2024-12-29)
+-----------------
+  * fix for issues with qrcode display via terminal sixel mode
+  * by default only use sixel if no other viewers found
+
 1.12 (2024-04-19)
+-----------------
   * set LC_ALL and LANG environment variables to 'C' locale so that output of commands is in default language
 
 1.11 (2024-04-05)
+-----------------
   * added '-K' option to handle bad keys in the keyring
   * added manpage
 
 1.10 (2024-01-23)
+-----------------
   * make clipboard work
 
 1.9 (2024-01-23)
+-----------------
   * show notes as well as just keynames in the 'list' command
   * add 'names' command to list just keynames
   * fix 'del' and 'rm' commands
