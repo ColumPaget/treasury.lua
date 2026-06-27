@@ -186,7 +186,91 @@ The type of file to export to is specified by the `-csv` `-xml` `-json` `-zcsv` 
 
 ## Syncing
 
-treasury.lua has a simple syncing system. When changes are made to a lockbox that lockbox is copied to '~/.treasury/sync_out'. Whenever a lockbox is opened, treasury.lua checks in 'sync_in' for any files that it should import to update the lockbox. This means that, if files are pushed from sync_out using rsync or somekind of FTP system, to a common storage server, and if they are regularly synced from that server to sync_in, then multiple instances of treasury.lua can stay in sync by this means. Each file droppend in 'sync_out' has the hostname included, ensuring that different systems should not overwrite each other's files. As the files are themselves copies of lockboxes, they are encrypted as the lockboxes are. However, this does mean that the same password has to be used for the same lockbox on all systems that are synced this way.
+treasury.lua has a simple syncing system. When changes are made to a lockbox that lockbox is copied to a 'sync_out' directory (default '~/.treasury/sync_out' ). Whenever a lockbox is opened, treasury.lua checks a 'sync_in' directory (default ~/.treasury/sync_in) for any files that it should import to update the lockbox. This means that, if files are pushed from sync_out using rsync or some kind of FTP system, to a common storage server, and if they are regularly synced from that server to sync_in, then multiple instances of treasury.lua can stay in sync by this means. Syncing adds or overwrites entries, but never deletes them if they are missing in the imported sync file. Unfortunately entries that are outright deleted have to be deleted on all systems manually.
+
+Each file dropped in 'sync_out' have the hostname included in their filename, thus ensuring that different systems should not overwrite each other's files. As the files are themselves copies of lockboxes, they are encrypted as the lockboxes are. Export to 'sync_out' does not require decrypting the files, so no passwords are asked for, and the process can be run automated or on a schedule out of cron.
+
+Files can be copied from a common server into the 'sync_in' directroy. When a request is made to lookup a value from a lockbox, treasury.lua will check for any imports from 'sync_in' first, so that it looks u from an up-to-date version of the file. treasury.lua tries to ask for passwords only once, and thus will ask for the password for the destination lockbox, and try using that to open the 'sync' files. If this fails it will then ask for the password of any sync file that doesn't work with the destination lockboxes password. For this reason it's likely a good idea to use the same lockbox passwords on all systems that will be synched, otherwise the burden of typing in passwords for different systems can become oppressive.
+
+Alternatively syncing can be controlled more manually using the 'sync' and 'send' command-line options of treasury.lua. The 'send' command is used to just send a lockbox, or lockboxes to the specified destination. It will do this regardless of whether those lockboxes have changed. 'send' does this without decrypting the lockboxes, and thus does not have to ask the user for a password, making it suitable for automated or scheduled use. When producing output files, 'send' includes the hostname of the system in the resulting file so that sync files from multiple hosts can share the same directory on a central server, allowing these hosts to all sync from the same central authority. 'send' has two possible usages:
+
+
+### Send a specific lockbox
+
+
+```
+treasury.lua send <box path> <destination>
+```
+
+in the above use case the box at <box path> is sent to directory "<destination>". The use of the box file path, rather than the box name, allows sending lockbox files that aren't in the usual working directory of treasury. Since treasury v1.14 the <destination> part of a send command can be an ssh: url. 
+
+
+### Send all known lockboxes
+
+
+```
+treasury.lua send <destination>
+```
+
+in the above use case all lockboxes "known" to treasury (that is found in the standard treasury working directory) are sent to "<destination>". The use of the box file path, rather than the box name, allows sending lockbox files that aren't in the usual working directory of treasury. Since treasury v1.14 the <destination> part of a send command can be an ssh: url. 
+
+
+### Examples
+
+Send a specific lockbox file to '/var/export/' directory.
+
+```
+treasury.lua send /home/user1/.treasury/credentials.lb /var/export/
+
+```
+
+
+Send all 'known' lockboxes to '/var/export/' directory.
+
+```
+treasury.lua send /var/export/
+
+```
+
+
+Send all 'known' lockboxes to a directory on an ssh: server
+
+```
+treasury.lua send ssh:myserver/sync/treasury/
+
+```
+
+
+There are two commands relating to importing sync files:
+
+* The "update" command is driven from known lockboxes. For each lockbox in the working directory it searches for matching sync files in the 'sync_in' directory and imports them. The update command takes no arguments.
+
+* The "sync" command is driven from "sync files". It searches for such files in a path, and imports imports them, creating new lockboxes if needed. The sync command accepts arguments that are paths to sync files. If no such path is given it will search for files in the "sync_in" directory. The "sync" command can accept ssh: urls as input file paths.
+
+
+### Examples
+
+update all existing lockboxes:
+
+```
+treasury.lua update
+```
+
+sync from all/any files found in 'sync_in' directory, creating lockboxes if they don't already exist
+
+
+```
+treasury.lua sync
+```
+
+sync from files found at paths
+
+
+```
+treasury.lua sync /var/sync_in/*.sync /home/sync/treasury/*.sync
+```
+
+
 
 ## TOTP
 

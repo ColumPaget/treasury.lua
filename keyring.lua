@@ -7,10 +7,12 @@ local str
 if strutil.strlen(key_id) > 0 and tonumber(timeout) > 0
 then
   str="cmd:keyctl timeout " .. key_id .. " " .. tostring(timeout)
+  if GlobalDebug == true then io.stderr:write("set lifetime/timeout for key: "..key_id.."  "..str .. "\n") end
   S=stream.STREAM(str, "")
   if S ~= nil
   then
     str=S:readln()
+    if GlobalDebug == true then io.stderr:write(tostring(str).."\n") end
     S:close()
   end
 end
@@ -23,10 +25,12 @@ local str, S
 
 if strutil.strlen(id) > 0
 then
+  if GlobalDebug == true then io.stderr:write("get key: "..id .. "\n") end
   S=stream.STREAM("cmd:keyctl pipe "..id,"rw stderr2null")
   if S ~= nil
   then
      str=strutil.trim(S:readln())
+     if GlobalDebug == true then io.stderr:write(tostring(str).."\n") end
      S:close()
   end
 end
@@ -36,12 +40,17 @@ end
 
 
 keyring.get=function(self, lockbox_name)
-local S, id
+local S, id, str
 
-S=stream.STREAM("cmd:keyctl search @s user 'treasury.lua:"..lockbox_name.."'","rw stderr2null")
+
+str="cmd:keyctl search @s user 'treasury.lua:"..lockbox_name.."'"
+if GlobalDebug == true then io.stderr:write("keyring.get: " .. str .. "\n") end
+
+S=stream.STREAM(str, "rw stderr2null")
 if S ~= nil
 then
 id=strutil.trim(S:readln())
+if GlobalDebug == true then io.stderr:write("got key for: ".. lockbox_name.. " key=" .. id.."\n") end
 if id ~= nil then self:set_timeout(id, config:get("keyring_timeout")) end
 S:close()
 end
@@ -56,12 +65,15 @@ local id, str
 
 
 str="cmd:keyctl padd user 'treasury.lua:"..lockbox_name.."' "..keyring
+if GlobalDebug == true then io.stderr:write("add key: ".. str.. "\n") end
 S=stream.STREAM(str,  "")
 if S ~= nil
 then
 S:writeln(password.."\r\n")
 S:commit()
 id=strutil.trim(S:readln())
+if GlobalDebug == true then io.stderr:write("add id: " .. id.. "\n") end
+
 S:close()
 end
 return(id)

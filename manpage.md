@@ -58,34 +58,31 @@ rm  [lockbox] [key]
 : remove a key/value pair from a lockbox
 
 get [lockbox] [key]
-: get the value matching 'key' in a lockbox
+: get the value matching "key" in a lockbox
 
 get [lockbox] [key] -o <path>
-: get the value matching 'key' in a lockbox, and write it to <path>
+: get the value matching "key" in a lockbox, and write it to <path>
 
 get [lockbox] [key] -qr
-: get the value matching 'key' in a lockbox, and display as qr code
+: get the value matching "key" in a lockbox, and display as qr code
 
 get [lockbox] [key] -qr -o <path>
-: get the value matching 'key' in a lockbox, and write as a qr code PNG to <path>
+: get the value matching "key" in a lockbox, and write as a qr code PNG to <path>
 
 get [lockbox] [key] -clip
-: get the value matching 'key' in a lockbox, and push it to clipboard
+: get the value matching "key" in a lockbox, and push it to clipboard
 
 get [lockbox] [key] -osc52
-: get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command
+: get the value matching "key" in a lockbox, and push it to clipboard using xterm"s osc52 command
 
 get [lockbox] [key] -totp
-: get the value matching 'key' in a lockbox, use it to generate a google-authenticator compatible TOTP code.
-
-get [lockbox] [key] -K
-: use '-K' if you are using keyrings, but somehow have a bad key in your keyring.
+: get the value matching "key" in a lockbox, use it to generate a google-authenticator compatible TOTP code.
 
 entry [lockbox]
-: enter 'data entry' mode for lockbox
+: enter "data entry" mode for lockbox
 
 shell [lockbox]
-: enter 'shell' mode for lockbox
+: enter "shell" mode for lockbox
 
 sync [path]
 : sync key/value pairs from a lockbox file
@@ -94,10 +91,28 @@ chpw [box]
 : change password for a lockbox
 
 find [lockbox] [search pattern]
-: find key/value pairs matching 'search pattern'
+: find key/value pairs matching "search pattern"
+
+update
+: sync known lockboxes by searching for matching "sync" files found in the "sync_in" directory (default ~/.treasury/sync_in)
+
+update [lockbox]
+: sync specified known lockbox by searching for matching "sync" files found in the "sync_in" directory (default ~/.treasury/sync_in)
+
+sync
+: sync key/value pairs from "sync" files found in the "sync_in" directory (default ~/.treasury/sync_in)
 
 sync [path]
-: sync key/value pairs from a lockbox file
+: sync key/value pairs from a sync or lockbox file(s). "path" can be a pattern like "/home/user/incoming/*", or an ssh path like "ssh:myserver/sync/treasury/*.sync"
+
+sync [path] [path] ...
+: sync key/value pairs from a sync or lockbox file(s). "path" can be a pattern like "/home/user/incoming/*", or an ssh path like "ssh:myserver/sync/treasury/*.sync"
+
+send [path] [dir]
+: send lockbox at <path> to a directory <dir> for syncing. <dir> can be an ssh: url to a directory on another system
+
+send [dir]
+: send all known lockboxes to a directory <dir> for syncing. <dir> can be an ssh: url to a directory on another system
 
 import [lockbox] [path]
 :         import key/value pairs from a file
@@ -161,10 +176,22 @@ help
 
 
 
+
+
 OPTIONS
 =======
 
 Note, the below options are generally used with specific actions listed above. "data" mentioned below refers to the secret data that is stored in a lockbox against a key
+
+
+-K 
+: don't use keyring for getting lockbox password
+
+-nokeyring
+: don't use keyring for getting lockbox password
+
+-nosync
+: don't update a lockbox with files from the "sync_in" directory before names/list/dump/get commands
 
 -g
 : generate a 32bit random string, and add it to a lockbox, used to generate random passwords
@@ -229,6 +256,8 @@ Note, the below options are generally used with specific actions listed above. "
 -sjson
 : export key-value pairs to a openssl encrypted json file
 
+-debug
+: output debugging. N.B. THIS WILL INCLUDE LOCKBOX PASSWORDS.
 
 -version
 : show program version
@@ -256,18 +285,22 @@ At current these settings are:
 
 
 ```
-clip_cmd            xsel -i -p -b,xclip -selection clipboard,pbcopy
-iview_cmd           imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g
-edit_cmd            vim,vi,pico,nano
-syslog              y
-digest              sha256
 algo                aes-256-cbc
-pass_hide           stars+1
+clip_cmd            xsel -i -p -b,xclip -selection clipboard,pbcopy
+digest              sha256
+edit_cmd            vim,vi,pico,nano
+iview_cmd           imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links -g
+keyring             y
+keyring_timeout     3600
 mlock               n
+pass_hide           stars+1
+qr_cmd              qrencode -o
 resist_strace       n
 scrub_files         n
-keyring             n
-keyring_timeout     3600
+sync_in             ~/.treasury/sync_in/
+sync_out            ~/.treasury/sync_out/
+syslog              y
+
 ```
 
 
@@ -307,6 +340,11 @@ keyring
 keyring_timeout
 : specify a timeout in seconds for passwords stored in the kernel keyring. If a given password is unused for longer than this time, then it will be deleted from the keyring. The default is one hour (3600 seconds).
 
+sync_in
+: directory to search for 'sync' files to update lockboxes from ~/.treasury/sync_in/
+
+sync_out
+: directory to export 'sync' files to  ~/.treasury/sync_out/
 
 
 Import/Export
@@ -344,9 +382,27 @@ for JSON files the default format is:
 ```
 
 
-When using PKZIP or INFOZIP as a wrapper the data must be extracted using the '-p' command-line option, as the data was read from stdin and info-zip (somewhat stupidly) stores this as a file called '-'. Thus, to extract the data to a file you should use `unzip -p secrets.zcsv > secrets.csv`. 
+When using PKZIP or INFOZIP as a wrapper the data must be extracted using the '-p' command-line option, as the data was read from stdin and info-zip (somewhat stupidly) stores this as a file called '-'. Thus, to extract the data to a file you should use:
 
-When using 7zip data can be extracted to a file using `7za x <file>` or to stdout using `7za x -so <file>`. Note that when extracting to stdout 7zip will not prompt for password, but does expect a password to be typed in.
+```
+unzip -p secrets.zcsv > secrets.csv.
+```
+ 
+When using 7zip data can be extracted to a file using:
+
+```
+7za x <file>
+```
+
+or to stdout using 
+
+```
+7za x -so <file>
+```
+
+
+Note that when extracting to stdout 7zip will not prompt for password, but does expect a password to be typed in.
+
 
 When using OPENSSL as a wrapper the unpack command has the format `openssl enc -d -a -md <digest algo> -<encryption algo> -pbkdf2 in <file>` where 'digest algo' and 'encryption algo' are the algorithms specified in settings as 'digest' and 'also' respectively. e.g.:
 
@@ -359,10 +415,71 @@ The type of file to export to is specified by the appropriate command-line optio
 
 
 
-Syncing
-=======
+## Syncing
 
-treasury.lua has a simple syncing system. When changes are made to a lockbox that lockbox is copied to '~/.treasury/sync_out'. Whenever a lockbox is opened, treasury.lua checks in 'sync_in' for any files that it should import to update the lockbox. This means that, if files are pushed from sync_out using rsync or somekind of FTP system, to a common storage server, and if they are regularly synced from that server to sync_in, then multiple instances of treasury.lua can stay in sync by this means. Each file dropped in 'sync_out' has the hostname included, ensuring that different systems should not overwrite each other's files. As the files are themselves copies of lockboxes, they are encrypted as the lockboxes are. However, this does mean that the same password has to be used for the same lockbox on all systems that are synced this way.
+treasury.lua has a simple syncing system. When changes are made to a lockbox that lockbox is copied to a 'sync_out' directory (default '~/.treasury/sync_out' ). Whenever a lockbox is opened, treasury.lua checks a 'sync_in' directory (default ~/.treasury/sync_in) for any files that it should import to update the lockbox. This means that, if files are pushed from sync_out using rsync or some kind of FTP system, to a common storage server, and if they are regularly synced from that server to sync_in, then multiple instances of treasury.lua can stay in sync by this means. Syncing adds or overwrites entries, but never deletes them if they are missing in the imported sync file. Unfortunately entries that are outright deleted have to be deleted on all systems manually.
+
+Each file dropped in 'sync_out' have the hostname included in their filename, thus ensuring that different systems should not overwrite each other's files. As the files are themselves copies of lockboxes, they are encrypted as the lockboxes are. Export to 'sync_out' does not require decrypting the files, so no passwords are asked for, and the process can be run automated or on a schedule out of cron.
+
+Files can be copied from a common server into the 'sync_in' directroy. When a request is made to lookup a value from a lockbox, treasury.lua will check for any imports from 'sync_in' first, so that it looks u from an up-to-date version of the file. treasury.lua tries to ask for passwords only once, and thus will ask for the password for the destination lockbox, and try using that to open the 'sync' files. If this fails it will then ask for the password of any sync file that doesn't work with the destination lockboxes password. For this reason it's likely a good idea to use the same lockbox passwords on all systems that will be synched, otherwise the burden of typing in passwords for different systems can become oppressive.
+
+Alternatively syncing can be controlled more manually using the 'sync' and 'send' command-line options of treasury.lua. The 'send' command is used to just send a lockbox, or lockboxes to the specified destination. It will do this regardless of whether those lockboxes have changed. 'send' does this without decrypting the lockboxes, and thus does not have to ask the user for a password, making it suitable for automated or scheduled use. When producing output files, 'send' includes the hostname of the system in the resulting file so that sync files from multiple hosts can share the same directory on a central server, allowing these hosts to all sync from the same central authority. 'send' has two possible usages:
+
+
+### Send a specific lockbox
+
+```
+treasury.lua send <box path> <destination>
+```
+
+in the above use case the box at <box path> is sent to directory "<destination>". The use of the box file path, rather than the box name, allows sending lockbox files that aren't in the usual working directory of treasury. Since treasury v1.14 the <destination> part of a send command can be an ssh: url.
+
+
+
+### Send all known lockboxes
+
+```
+treasury.lua send <destination>
+```
+
+in the above use case all lockboxes "known" to treasury (that is found in the standard treasury working directory) are sent to "<destination>". The use of the box file path, rather than the box name, allows sending lockbox files that aren't in the usual working directory of treasury. Since treasury v1.14 the <destination> part of a send command can be an ssh: url.
+
+There are two commands relating to importing sync files:
+
+* The "update" command is driven from known lockboxes. For each lockbox in the working directory it searches for matching sync files in the 'sync_in' directory and imports them. The update command takes no arguments.
+
+* The "sync" command is driven from "sync files". It searches for such files in a path, and imports imports them, creating new lockboxes if needed. The sync command accepts arguments that are paths to sync files. If no such path is given it will search for files in the "sync_in" directory. The "sync" command can accept ssh: urls as input file paths.
+
+
+### Examples
+
+update all existing lockboxes:
+
+```
+treasury.lua update
+```
+
+
+sync from all/any files found in 'sync_in' directory, creating lockboxes if they don't already exist
+
+```
+treasury.lua sync
+```
+
+
+sync from files found at paths
+
+```
+treasury.lua sync /var/sync_in/*.sync /home/sync/treasury/*.sync
+```
+
+
+sync from files on an ssh server
+
+```
+treasury.lua sync ssh:myserver/sync/treasury/*.sync
+```
+
 
 
 TOTP
@@ -380,7 +497,7 @@ Then a TOTP code can be generated from the secret key using:
  treasury.lua get sites_totp mysite -totp
 ```
 
-The `-totp` option to the 'get' command will calculate a TOTP code from the stored value, and display that instead of the stored value itself. This requires the stored value to be a base32 encoded secret. The TOTP calculation is google-compatible (6 digits, period 30 seconds).
+The "-totp" option to the 'get' command will calculate a TOTP code from the stored value, and display that instead of the stored value itself. This requires the stored value to be a base32 encoded secret. The TOTP calculation is google-compatible (6 digits, period 30 seconds).
 
 
 Attacks and Vulnerabilities

@@ -65,19 +65,20 @@ end
 
 
 ui.ask_password=function(self, prompt, hint)
-local str
+local str 
+local prefix="~e"
+local postfix=""
 
 if Mode=="menu"
-then
-Term:move(0, Term:height() -2)
-if strutil.strlen(hint) > 0 then Term:puts("Password hint: "..hint.."\n") end
-str=Term:prompt("~B~w"..prompt.."~>", config:get("pass_hide"))
-Term:puts("~0")
-else
-if strutil.strlen(hint) > 0 then Term:puts("Password hint: "..hint.."\n") end
-str=Term:prompt(prompt.."~>", config:get("pass_hide"))
-Term:puts("~0\n")
+then 
+prefix="~B~w"
+postfix="~>"
+Term:move(0, Term:height() -2) 
 end
+
+  if strutil.strlen(hint) > 0 then Term:puts("Password hint: "..hint.."\n") end
+  str=Term:prompt(prefix .. prompt .. postfix, config:get("pass_hide"))
+  Term:puts("~0")
 
 return str
 end

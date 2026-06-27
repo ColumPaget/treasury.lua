@@ -1,4 +1,21 @@
 
+-- this is not a member of LockBox
+function LockboxFromFile(path)
+local S, lb
+
+if GlobalDebug == true then io.stderr:write("LockboxFromFile: '"..tostring(path).."'\n") end
+
+S=stream.STREAM(path, "r")
+if S ~= nil
+then
+lb=LockboxCreate("", path)
+if lb ~= nil then lb:read_info(S) end
+S:close()
+end
+
+return lb
+end
+
 
 
 function LockboxCreate(name, path, password, hint)
@@ -16,6 +33,7 @@ lockbox.items={}
 if strutil.strlen(path) == 0 then lockbox.path=lockboxes:path(name)
 else lockbox.path=path
 end
+
 
 
 -- from here on is member functions of 'lockbox'
@@ -49,6 +67,8 @@ end
 
 lockbox.save=function(self, do_sync)
 local str, S, key, item, name, value
+
+if GlobalDebug == true then io.stderr:write("Saving lockbox: "..self.name .. " to path: "..self.path .."\n") end
 
 if strutil.strlen(self.password) == 0 then self.password=ui:ask_password("Password for "..self.name..": ~>") end
 
@@ -256,16 +276,23 @@ end
 
 
 
-lockbox.read=function(self)
+lockbox.read=function(self, dosync)
 local S
 local str=""
 local queried_password=false
+
+if GlobalNoSync ~= true and dosync ~= false then sync:update(self) end
 
 S=stream.STREAM(self.path, "r")
 if S ~= nil
 then
 self:read_info(S)
-if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" then self.password=keyring:get(self.name) end
+if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" 
+then 
+self.password=keyring:get(self.name) 
+if GlobalDebug == true then io.stderr:write("Using keyring: got "..tostring(self.password).."\n") end
+end
+
 if strutil.strlen(self.password) == 0 
 then
 	self.password=ui:ask_password("Password for "..self.name..": ~>", self.passhint) 
@@ -284,21 +311,20 @@ end
 
 
 -- load without importing synced items
-lockbox.load_items=function(self)
+lockbox.load_items=function(self, dosync)
 local str
 
-str=self:read()
+str=self:read(dosync)
 if str==nil then return false end
 self:parse_items(str)
 return true
 end
 
 
-lockbox.load=function(self)
+lockbox.load=function(self, dosync)
 local result
 
-result=self:load_items()
-sync:update(self)
+result=self:load_items(dosync)
 return result 
 end
 

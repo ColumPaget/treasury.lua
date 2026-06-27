@@ -1,6 +1,7 @@
 Mode="cli"
-Version="1.13"
-
+Version="1.14"
+GlobalDebug=false
+GlobalNoSync=false
 
 function NewLockbox(cmd)
 local name
@@ -121,14 +122,12 @@ end
 function GetDataFromBox(box, key, cmd)
 local item
 
-	item=box:get(key)
-	Term:puts("\n")
-	if item ~= nil 
-	then 
-    OutputItem(item, cmd)
-	else 
-    ui:error("key not found in lockbox")
-	end
+   item=box:get(key)
+   Term:puts("\n")
+   if item ~= nil then OutputItem(item, cmd)
+   else ui:error("key not found in lockbox")
+   end
+
 end
 
 
@@ -220,31 +219,7 @@ end
 
 
 
-function ImportData(cmd)
-local S, str, toks
 
-if strutil.strlen(cmd.path) == 0
-then
-ui:error("import command must have format: treasury.lua import <lockbox> <import path>")
-return
-end
-
-box=lockboxes:find(cmd.box)
-if box == nil then box=NewLockbox(cmd) end
-importer:import(box, cmd.path, cmd.fieldlist, cmd.import_type)
-
-end
-
-
-
-function SyncData(cmd_line)
-local i
-
-for i=2,#cmd_line,1
-do
-if lockboxes:sync(cmd_line[i]) ~= true then ui:error("incorrect password") end
-end
-end
 
 
 
@@ -265,9 +240,15 @@ config=ConfigInit()
 --but haven't figured it out yet
 --str="openlog=treasury.lua "
 
+-- cannot use +noipc or +nopid with keyring. 
+-- +nopid currently calls 'setsid', perhaps wrongly and this creates a new session, so we cannot lookup keys in the session keyring
+-- +noipc is more mysterious. It definitely prevents looking up keys in the keyring, but adds no setsid, nor any syscalls that return EPERM
+str="nosu security='syscall_allow=group:keyring user+client"
+
 if config.coredumps==false then str=str.."coredumps=0 " end
 if config.mlock==true then str=str.."mlock " end
 if config.resist_strace==true then str=str.."resist_strace " end
+
 process.configure(str)
 
 --next setup the terminal. We do this early as other functions need a terminal to write to
@@ -290,23 +271,26 @@ end
 TreasuryInit()
 cmd=CommandLineParse(arg)
 
+if GlobalDebug == true then io.stderr:write("Debugging Active\n") end
 
 if cmd.type == "new" then NewLockbox(cmd)
+elseif cmd.type == "list" or cmd.type == "ls" or cmd.type=="names" then ListLockbox(cmd)
+elseif cmd.type == "dump" then DumpData(cmd)
 elseif cmd.type == "add" or cmd.type=="set" then DepositData(cmd)
 elseif cmd.type == "del" or cmd.type=="rm" then RemoveData(cmd)
-elseif cmd.type == "entry" then EnterData(cmd)
-elseif cmd.type == "list" or cmd.type == "ls" or cmd.type=="names" then ListLockbox(cmd)
 elseif cmd.type == "get"  then GetData(cmd)
+elseif cmd.type == "entry" then EnterData(cmd)
+elseif cmd.type == "shell" then Shell(cmd)
+elseif cmd.type == "update" then sync:update_by_name(cmd.box)
+elseif cmd.type == "sync" then sync:import_items(cmd.items)
+elseif cmd.type == "send" then sync:export_items(cmd)
+elseif cmd.type == "chpw" then ChangePassword(cmd)
 elseif cmd.type == "find"  then FindData(cmd)
-elseif cmd.type == "dump" then DumpData(cmd)
-elseif cmd.type == "import" then ImportData(cmd)
-elseif cmd.type == "sync" then SyncData(arg)
-elseif cmd.type == "push" then lockboxes:sync_push()
+elseif cmd.type == "import" then importer:import(cmd)
 elseif cmd.type == "export" then exporter:export(cmd)
+elseif cmd.type == "push" then lockboxes:sync_push()
 elseif cmd.type == "show-config" then config:output()
 elseif cmd.type == "config-set" then config:change(arg[2], arg[3])
-elseif cmd.type == "shell" then Shell(cmd)
-elseif cmd.type == "chpw" then ChangePassword(cmd)
 elseif cmd.type == "rebuild" then Rebuild(cmd)
 elseif cmd.type == "version" or cmd.type == "-version" or cmd.type == "--version" then print("treasury.lua "..Version)
 elseif cmd.type == "--help" or cmd.type == "-help" or cmd.type == "help" or cmd.type == "-?" then PrintHelp()

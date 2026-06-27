@@ -74,6 +74,8 @@ end
 S:close()
 end
 
+
+
 end
 
 
@@ -98,12 +100,22 @@ end
 
 
 config.output=function(self)
-local key, value
+local key, value, i
+local sorted={}
 
+--lua has no good way of sorting a table by keys/names
 for key,value in pairs(self.items)
 do
-		print("'"..key.."'="..tostring(value))
+    table.insert(sorted, key);
 end
+
+table.sort(sorted)
+
+for i,key in pairs(sorted)
+do
+		print("'"..key.."'="..tostring(self.items[key]))
+end
+
 end
 
 
@@ -138,6 +150,8 @@ config:set("scrub_files", "n")
 config:set("resist_strace", "n")
 config:set("keyring", "n")
 config:set("keyring_timeout", "3600")
+config:set("sync_in",  process.getenv("HOME") .. "/.treasury/sync_in/")
+config:set("sync_out", process.getenv("HOME") .. "/.treasury/sync_out/")
 
 config:load()
 

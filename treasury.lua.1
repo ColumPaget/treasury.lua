@@ -1,740 +1,842 @@
-.TH  treasury.lua  1 " 05 April 2024"
+.TH  treasury.lua  1 "05 April 2024"
 
 .SH SYNOPSIS
- 
-.P
+
+.PP
 treasury.lua is a simple command-line app for storing short secrets.
 .SH DESCRIPTION
- 
-.P
+
+.PP
 \fBtreasury.lua\fP is intended for storing short secrets like phone numbers, contact details, or passwords. It uses the openssl command-line app to encrypt data, which is then stored in \(aqlockboxes\(aq (which are single files containing all items related to a given task or data type). Each lockbox is password-protected, and has an optional password hint that it will display when querying for it\(aqs password.
-.P
+.PP
 \fBtreasury.lua\fP can export it\(aqs data in a few simple formats, can generate qr codes from data, and can generate TOTP authentication codes from stored data too.
 .SH USAGE
- 
+
 .nf
-.in +4n
+.ft CW
+.RS
 .EX
 
  treasury.lua [action] [lockbox] [key] [value]
+.RE
 .EE
 .fi
 .in
 .ad b
 .nop  
 .SH ACTIONS
-  
-.P
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B new [lockbox]
- create a new lockbox
-   
-.P
+create a new lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B list [lockbox]
- list keys in a lockbox, along with their associated notes/comment
-   
-.P
+list keys in a lockbox, along with their associated notes/comment
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B names [lockbox]
- list keys in a lockbox
-   
-.P
+list keys in a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B dump [lockbox]
- dump lockbox in plain text
-   
-.P
+dump lockbox in plain text
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B add [lockbox] [key] [value]
- add a key/value pair to a lockbox
-   
-.P
+add a key/value pair to a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B add [lockbox] [key] -g
- generate a 32bit random string, and add it to a lockbox
-   
-.P
+generate a 32bit random string, and add it to a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B add [lockbox] [key] -generate
- generate a 32bit random string, and add it to a lockbox
-   
-.P
+generate a 32bit random string, and add it to a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B add [lockbox] [key] -glen <len>
- generate a random string, and add it to a lockbox
-   
-.P
+generate a random string, and add it to a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B del [lockbox] [key]
- remove a key/value pair from a lockbox
-   
-.P
+remove a key/value pair from a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B rm  [lockbox] [key]
- remove a key/value pair from a lockbox
-   
-.P
+remove a key/value pair from a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B get [lockbox] [key]
- get the value matching \(aqkey\(aq in a lockbox
-   
-.P
+get the value matching "key" in a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B get [lockbox] [key] -o <path>
- get the value matching 'key' in a lockbox, and write it to <path>
-   
-.P
+get the value matching "key" in a lockbox, and write it to <path>
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B get [lockbox] [key] -qr
- get the value matching \(aqkey\(aq in a lockbox, and display as qr code
-   
-.P
+get the value matching "key" in a lockbox, and display as qr code
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B get [lockbox] [key] -qr -o <path>
- get the value matching 'key' in a lockbox, and write as a qr code PNG to <path>
-   
-.P
+get the value matching "key" in a lockbox, and write as a qr code PNG to <path>
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B get [lockbox] [key] -clip
- get the value matching \(aqkey\(aq in a lockbox, and push it to clipboard
-   
-.P
+get the value matching "key" in a lockbox, and push it to clipboard
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B get [lockbox] [key] -osc52
- get the value matching \(aqkey\(aq in a lockbox, and push it to clipboard using xterm\(aqs osc52 command
-   
-.P
+get the value matching "key" in a lockbox, and push it to clipboard using xterm"s osc52 command
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B get [lockbox] [key] -totp
- get the value matching \(aqkey\(aq in a lockbox, use it to generate a google-authenticator compatible TOTP code.
-   
-.P
+get the value matching "key" in a lockbox, use it to generate a google-authenticator compatible TOTP code.
+.in
 
-.br
- 
-.TP
-.B get [lockbox] [key] -K
- use \(aq-K\(aq if you are using keyrings, but somehow have a bad key in your keyring.
-   
-.P
+.PP
+.in +2
 
-.br
- 
 .TP
 .B entry [lockbox]
- enter \(aqdata entry\(aq mode for lockbox
-   
-.P
+enter "data entry" mode for lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B shell [lockbox]
- enter \(aqshell\(aq mode for lockbox
-   
-.P
+enter "shell" mode for lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B sync [path]
- sync key/value pairs from a lockbox file
-   
-.P
+sync key/value pairs from a lockbox file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B chpw [box]
- change password for a lockbox
-   
-.P
+change password for a lockbox
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B find [lockbox] [search pattern]
- find key/value pairs matching \(aqsearch pattern\(aq
-   
-.P
+find key/value pairs matching "search pattern"
+.in
 
-.br
- 
+.PP
+.in +2
+
+.TP
+.B update
+sync known lockboxes by searching for matching "sync" files found in the "sync_in" directory (default ~/.treasury/sync_in)
+.in
+
+.PP
+.in +2
+
+.TP
+.B update [lockbox]
+sync specified known lockbox by searching for matching "sync" files found in the "sync_in" directory (default ~/.treasury/sync_in)
+.in
+
+.PP
+.in +2
+
+.TP
+.B sync
+sync key/value pairs from "sync" files found in the "sync_in" directory (default ~/.treasury/sync_in)
+.in
+
+.PP
+.in +2
+
 .TP
 .B sync [path]
- sync key/value pairs from a lockbox file
-   
-.P
+sync key/value pairs from a sync or lockbox file(s). "path" can be a pattern like "/home/user/incoming/*", or an ssh path like "ssh:myserver/sync/treasury/*.sync"
+.in
 
-.br
- 
+.PP
+.in +2
+
+.TP
+.B sync [path] [path] ...
+sync key/value pairs from a sync or lockbox file(s). "path" can be a pattern like "/home/user/incoming/*", or an ssh path like "ssh:myserver/sync/treasury/*.sync"
+.in
+
+.PP
+.in +2
+
+.TP
+.B send [path] [dir]
+send lockbox at <path> to a directory <dir> for syncing. <dir> can be an ssh: url to a directory on another system
+.in
+
+.PP
+.in +2
+
+.TP
+.B send [dir]
+send all known lockboxes to a directory <dir> for syncing. <dir> can be an ssh: url to a directory on another system
+.in
+
+.PP
+.in +2
+
 .TP
 .B import [lockbox] [path]
-         import key/value pairs from a file
-   
-.P
+       import key/value pairs from a file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path]
-         export key/value pairs to a file
-   
-.P
+       export key/value pairs to a file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -csv
-    export key/value pairs from a csv file
-   
-.P
+  export key/value pairs from a csv file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -xml
-    export key/value pairs from a xml file
-   
-.P
+  export key/value pairs from a xml file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -json
-   export key/value pairs from a json file
-   
-.P
+ export key/value pairs from a json file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -zcsv
-   export key/value pairs from a pkzipped csv file (with password)
-   
-.P
+ export key/value pairs from a pkzipped csv file (with password)
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -zxml
-   export key/value pairs from a pkzipped xml file (with password)
-   
-.P
+ export key/value pairs from a pkzipped xml file (with password)
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -zjson
-  export key/value pairs from a pkzipped json file (with password)
-   
-.P
+export key/value pairs from a pkzipped json file (with password)
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -7zcsv
-  export key/value pairs from a 7zipped csv file (with password)
-   
-.P
+export key/value pairs from a 7zipped csv file (with password)
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -7zxml
-  export key/value pairs from a 7zipped xml file (with password)
-   
-.P
+export key/value pairs from a 7zipped xml file (with password)
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B export [lockbox] [path] -7zjson
- export key/value pairs from a 7zipped json file (with password)
-   
-.P
+export key/value pairs from a 7zipped json file (with password)
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B show-config
- print out application config
-   
-.P
+print out application config
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B config-set [name] [value]
- change a config value
-   
-.P
+change a config value
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B version
- print program version
-   
-.P
+print program version
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -version
- print program version
-   
-.P
+print program version
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
-.B \(hyversion
- print program version
-   
-.P
+.B --version
+print program version
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
-.B \(hyhelp
- print help
-   
-.P
+.B --help
+print help
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -help
- print help
-   
-.P
+print help
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B help
- print help
-   
-.P
+print help
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -?
- print help
-  
+print help
+.in
+
 .SH OPTIONS
- 
-.P
-Note, the below options are generally used with specific actions listed above. "data" mentioned below refers to the secret data that is stored in a lockbox against a key 
-.P
 
-.br
- 
-.TP
-.B -g
- generate a 32bit random string, and add it to a lockbox, used to generate random passwords
-   
-.P
+.PP
+Note, the below options are generally used with specific actions listed above. "data" mentioned below refers to the secret data that is stored in a lockbox against a key
+.PP
+.in +2
 
-.br
- 
-.TP
-.B -generate
- generate a 32bit random string, and add it to a lockbox, used to generate random passwords
-   
-.P
-
-.br
- 
-.TP
-.B -glen <len>
- generate a random string of length <len>, and add it to a lockbox, used to generate random passwords
-   
-.P
-
-.br
- 
-.TP
-.B -o <path>
- write output to file at \(aqpath\(aq instead of stdout. Usually this writes the secret data to a file, but can be used with "-qr" to write a qrcode to a file.
-   
-.P
-
-.br
- 
-.TP
-.B -qr
- generate qr code of data for a given key
-   
-.P
-
-.br
- 
-.TP
-.B -clip
- push data to the clipboard using any method found
-   
-.P
-
-.br
- 
-.TP
-.B -osc52
- push data to the clipboard specifically using xterm\(aqs osc52 escape sequence
-   
-.P
-
-.br
- 
-.TP
-.B -totp
- generate a totp code from the data
-   
-.P
-
-.br
- 
 .TP
 .B -K
- ignore any keys stored in the system keyring, prompt for a fresh password and then update the keyring with that
-   
-.P
+don't use keyring for getting lockbox password
+.in
 
-.br
- 
+.PP
+.in +2
+
+.TP
+.B -nokeyring
+don't use keyring for getting lockbox password
+.in
+
+.PP
+.in +2
+
+.TP
+.B -nosync
+don't update a lockbox with files from the "sync_in" directory before names/list/dump/get commands
+.in
+
+.PP
+.in +2
+
+.TP
+.B -g
+generate a 32bit random string, and add it to a lockbox, used to generate random passwords
+.in
+
+.PP
+.in +2
+
+.TP
+.B -generate
+generate a 32bit random string, and add it to a lockbox, used to generate random passwords
+.in
+
+.PP
+.in +2
+
+.TP
+.B -glen <len>
+generate a random string of length <len>, and add it to a lockbox, used to generate random passwords
+.in
+
+.PP
+.in +2
+
+.TP
+.B -o <path>
+write output to file at \(aqpath\(aq instead of stdout. Usually this writes the secret data to a file, but can be used with "-qr" to write a qrcode to a file.
+.in
+
+.PP
+.in +2
+
+.TP
+.B -qr
+generate qr code of data for a given key
+.in
+
+.PP
+.in +2
+
+.TP
+.B -clip
+push data to the clipboard using any method found
+.in
+
+.PP
+.in +2
+
+.TP
+.B -osc52
+push data to the clipboard specifically using xterm\(aqs osc52 escape sequence
+.in
+
+.PP
+.in +2
+
+.TP
+.B -totp
+generate a totp code from the data
+.in
+
+.PP
+.in +2
+
+.TP
+.B -K
+ignore any keys stored in the system keyring, prompt for a fresh password and then update the keyring with that
+.in
+
+.PP
+.in +2
+
 .TP
 .B -csv
- export key-value pairs to a csv file
-   
-.P
+export key-value pairs to a csv file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -xml
- export key-value pairs to a xml file
-   
-.P
+export key-value pairs to a xml file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -json
- export key-value pairs to a json file
-   
-.P
+export key-value pairs to a json file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -zcsv
- export key-value pairs to a pkzip encrypted csv file
-   
-.P
+export key-value pairs to a pkzip encrypted csv file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -zxml
- export key-value pairs to a pkzip encrypted xml file
-   
-.P
+export key-value pairs to a pkzip encrypted xml file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -zjson
- export key-value pairs to a pkzip encrypted json file
-   
-.P
+export key-value pairs to a pkzip encrypted json file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -7zcsv
- export key-value pairs to a pkzip encrypted csv file
-   
-.P
+export key-value pairs to a pkzip encrypted csv file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -7zxml
- export key-value pairs to a pkzip encrypted xml file
-   
-.P
+export key-value pairs to a pkzip encrypted xml file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -7zjson
- export key-value pairs to a pkzip encrypted json file
-   
-.P
+export key-value pairs to a pkzip encrypted json file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -scsv
- export key-value pairs to a openssl encrypted csv file
-   
-.P
+export key-value pairs to a openssl encrypted csv file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -sxml
- export key-value pairs to a openssl encrypted xml file
-   
-.P
+export key-value pairs to a openssl encrypted xml file
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -sjson
- export key-value pairs to a openssl encrypted json file
-   
-.P
+export key-value pairs to a openssl encrypted json file
+.in
 
-.br
- 
+.PP
+.in +2
+
+.TP
+.B -debug
+output debugging. N.B. THIS WILL INCLUDE LOCKBOX PASSWORDS.
+.in
+
+.PP
+.in +2
+
 .TP
 .B -version
- show program version
-   
-.P
+show program version
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
-.B \(hyversion
- show program version
-   
-.P
+.B --version
+show program version
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -help
- show program help
-   
-.P
+show program help
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
-.B \(hyhelp
- show program help
-   
-.P
+.B --help
+show program help
+.in
 
-.br
- 
+.PP
+.in +2
+
 .TP
 .B -?
- show program help
-  
+show program help
+.in
+
 .SH SETTINGS
- 
-.P
+
+.PP
 the \(aqshow-config\(aq and \(aqconfig-set\(aq commands allow manipulation of a number of application settings that are stored in 
 .na
-~/.config/treasury/treasury.conf
+
+.BR ~/.config/treasury/treasury.conf
+.fi
+.ft P
+
 .ad n
 .nop . 
-.P
+.PP
 At current these settings are:
 .nf
-.in +4n
+.ft CW
+.RS
 .EX
 
-clip_cmd            xsel \-i \-p \-b,xclip \-selection clipboard,pbcopy
-iview_cmd           imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links \-g
-edit_cmd            vim,vi,pico,nano
-syslog              y
-digest              sha256
 algo                aes\-256\-cbc
-pass_hide           stars+1
+clip_cmd            xsel \-i \-p \-b,xclip \-selection clipboard,pbcopy
+digest              sha256
+edit_cmd            vim,vi,pico,nano
+iview_cmd           imlib2_view,fim,feh,display,xv,phototonic,qimageviewer,pix,sxiv,qimgv,qview,nomacs,geeqie,ristretto,mirage,fotowall,links \-g
+keyring             y
+keyring_timeout     3600
 mlock               n
+pass_hide           stars+1
+qr_cmd              qrencode \-o
 resist_strace       n
 scrub_files         n
-keyring             n
-keyring_timeout     3600
-.EE
-.fi
-.in
-.ad b
-.nop   
-.P
-
-.br
- 
-.TP
-.B clip_cmd
- a comma separated list of commands that can be used to set the system clipboard. It is assumed these commands take input on stdin. treasury.lua will use the first application in this list that it finds installed on the system.
-   
-.P
-
-.br
- 
-.TP
-.B iview_cmd
- a comma separated list of image viewer commands to use when displaying qr codes.
-   
-.P
-
-.br
- 
-.TP
-.B edit_cmd
- a comma separated list of text editor commands to use when editing large secrets.
-   
-.P
-
-.br
- 
-.TP
-.B syslog
- should messages should be sent to the system log when an incorrect password is entered when someone attempts to access a lockbox. Values are \(aqy\(aq and \(aqn\(aq for yes and no.
-   
-.P
-
-.br
- 
-.TP
-.B digest
- which hashing function openssl uses for key expansion in encryption. You should not change this unless you really know what you\(aqre doing.
-   
-.P
-
-.br
- 
-.TP
-.B algo
- which encryption method openssl uses. You should not change this unless you really know what you\(aqre doing.
-   
-.P
-
-.br
- 
-.TP
-.B coredumps
- whether treasury.lua should prevent itself producing coredumps should it crash for any reason. This is set to \(aqy\(aq by default.
-   
-.P
-
-.br
- 
-.TP
-.B mlock
- whether treasury.lua should attempt to lock itself in memory. If you set this to \(aqy\(aq then you must ensure that treasury.lua is allowed to lock enough pages of memory to hold all it\(aqs code and data. This is a security feature intended to prevent data being swapped out to disk, but it is somewhat experiemental.
-   
-.P
-
-.br
- 
-.TP
-.B resist_strace
- disallow stracing of the app. It will exit if it is already being straced. There is a race condition here where a skilled attacker could alter treasury.lua\(aqs behavior to allow stracing, which is why this is called \(aqresist\(aq rather than \(aqdeny\(aq. By default this is off (\(aqn\(aq).
-   
-.P
-
-.br
- 
-.TP
-.B scrub_files
- overwrite deleted files with random data. This was once held to be vital to prevent data recovery, however in the modern age we have complex filesystems that may well keep backups of the original data, and we have SSD drives, which suffer \(aqwrite wearing\(aq meaning that repeated writes gradually wear them out, so this feature is not considered important anymore. Defaults to \(aqoff\(aq (\(aqn\(aq).
-   
-.P
-
-.br
- 
-.TP
-.B keyring
- whether to use the linux keyring system. This requires keyutils/keyctl to be installed. When this boolen option is turned on (\(aqy\(aq) it will store passwords in the kernel keyring system as they are typed in. After being stored, treasury.lua will not need to ask for the password going forwards, and will \(aqremember\(aq it for that user, until that user logs out. treasury.lua will first try to store keys in the \(aqsession\(aq keyring, and if there isn\(aqt a session keyring, it will fall back to the  \(aquser\(aq keyring. The user keyring carries some dangers that anyone logged in as the user can get the password from the user keyring, even if they have a different login session. This feature is new and experimental, so it defaults to off (\(aqn\(aq). 
-   
-.P
-
-.br
- 
-.TP
-.B keyring_timeout
- specify a timeout in seconds for passwords stored in the kernel keyring. If a given password is unused for longer than this time, then it will be deleted from the keyring. The default is one hour (3600 seconds).
-  
-.SH Import/Export
- 
-.P
-treasury.lua can import data from files in csv, xml and json format. Each of these file formats and also be wrapped with zip, 7zip, or openssl encryption. The purpose of these wrappers is to provide a means of moving data between systems in an encrypted format, even if it\(aqs the relatively weak encryption of pkzip/info-zip.
-.P
-For CSV files the default format is: 
-.nf
-.in +4n
-.EX
-
-key, value, notes, updated time
+sync_in             \*(ti/.treasury/sync_in/
+sync_out            \*(ti/.treasury/sync_out/
+syslog              y
+.RE
 .EE
 .fi
 .in
 .ad b
 .nop  
-.P
+.PP
+.in +2
+
+.TP
+.B clip_cmd
+a comma separated list of commands that can be used to set the system clipboard. It is assumed these commands take input on stdin. treasury.lua will use the first application in this list that it finds installed on the system.
+.in
+
+.PP
+.in +2
+
+.TP
+.B iview_cmd
+a comma separated list of image viewer commands to use when displaying qr codes.
+.in
+
+.PP
+.in +2
+
+.TP
+.B edit_cmd
+a comma separated list of text editor commands to use when editing large secrets.
+.in
+
+.PP
+.in +2
+
+.TP
+.B syslog
+should messages should be sent to the system log when an incorrect password is entered when someone attempts to access a lockbox. Values are \(aqy\(aq and \(aqn\(aq for yes and no.
+.in
+
+.PP
+.in +2
+
+.TP
+.B digest
+which hashing function openssl uses for key expansion in encryption. You should not change this unless you really know what you\(aqre doing.
+.in
+
+.PP
+.in +2
+
+.TP
+.B algo
+which encryption method openssl uses. You should not change this unless you really know what you\(aqre doing.
+.in
+
+.PP
+.in +2
+
+.TP
+.B coredumps
+whether treasury.lua should prevent itself producing coredumps should it crash for any reason. This is set to \(aqy\(aq by default.
+.in
+
+.PP
+.in +2
+
+.TP
+.B mlock
+whether treasury.lua should attempt to lock itself in memory. If you set this to \(aqy\(aq then you must ensure that treasury.lua is allowed to lock enough pages of memory to hold all it\(aqs code and data. This is a security feature intended to prevent data being swapped out to disk, but it is somewhat experiemental.
+.in
+
+.PP
+.in +2
+
+.TP
+.B resist_strace
+disallow stracing of the app. It will exit if it is already being straced. There is a race condition here where a skilled attacker could alter treasury.lua\(aqs behavior to allow stracing, which is why this is called \(aqresist\(aq rather than \(aqdeny\(aq. By default this is off (\(aqn\(aq).
+.in
+
+.PP
+.in +2
+
+.TP
+.B scrub_files
+overwrite deleted files with random data. This was once held to be vital to prevent data recovery, however in the modern age we have complex filesystems that may well keep backups of the original data, and we have SSD drives, which suffer \(aqwrite wearing\(aq meaning that repeated writes gradually wear them out, so this feature is not considered important anymore. Defaults to \(aqoff\(aq (\(aqn\(aq).
+.in
+
+.PP
+.in +2
+
+.TP
+.B keyring
+whether to use the linux keyring system. This requires keyutils/keyctl to be installed. When this boolen option is turned on (\(aqy\(aq) it will store passwords in the kernel keyring system as they are typed in. After being stored, treasury.lua will not need to ask for the password going forwards, and will \(aqremember\(aq it for that user, until that user logs out. treasury.lua will first try to store keys in the \(aqsession\(aq keyring, and if there isn\(aqt a session keyring, it will fall back to the  \(aquser\(aq keyring. The user keyring carries some dangers that anyone logged in as the user can get the password from the user keyring, even if they have a different login session. This feature is new and experimental, so it defaults to off (\(aqn\(aq).
+.in
+
+.PP
+.in +2
+
+.TP
+.B keyring_timeout
+specify a timeout in seconds for passwords stored in the kernel keyring. If a given password is unused for longer than this time, then it will be deleted from the keyring. The default is one hour (3600 seconds).
+.in
+
+.PP
+.in +2
+
+.TP
+.B sync_in
+directory to search for \(aqsync\(aq files to update lockboxes from /.treasury/sync_in/
+.in
+
+.PP
+.in +2
+
+.TP
+.B sync_out
+directory to export 'sync' files to  /.treasury/sync_out/
+.in
+
+.SH Import/Export
+
+.PP
+treasury.lua can import data from files in csv, xml and json format. Each of these file formats and also be wrapped with zip, 7zip, or openssl encryption. The purpose of these wrappers is to provide a means of moving data between systems in an encrypted format, even if it\(aqs the relatively weak encryption of pkzip/info-zip.
+.PP
+For CSV files the default format is: 
+.nf
+.ft CW
+.RS
+.EX
+
+key, value, notes, updated time
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
 For XML files the default format is:
 .nf
-.in +4n
+.ft CW
+.RS
 .EX
 
 <item>
@@ -743,16 +845,17 @@ For XML files the default format is:
 <notes>extra notes</notes>
 <updated>updated timestamp</updated>
 </item>
-
+.RE
 .EE
 .fi
 .in
 .ad b
 .nop  
-.P
+.PP
 for JSON files the default format is:
 .nf
-.in +4n
+.ft CW
+.RS
 .EX
 
 {
@@ -761,100 +864,261 @@ for JSON files the default format is:
 "notes": extra notes,
 "updated": updated timestamp,
 }
+.RE
 .EE
 .fi
 .in
 .ad b
 .nop  
-.P
-When using PKZIP or INFOZIP as a wrapper the data must be extracted using the \(aq-p\(aq command-line option, as the data was read from stdin and info-zip (somewhat stupidly) stores this as a file called \(aq-\(aq. Thus, to extract the data to a file you should use 
+.PP
+When using PKZIP or INFOZIP as a wrapper the data must be extracted using the \(aq-p\(aq command-line option, as the data was read from stdin and info-zip (somewhat stupidly) stores this as a file called \(aq-\(aq. Thus, to extract the data to a file you should use:
+.nf
+.ft CW
+.RS
+.EX
+
+unzip \-p secrets.zcsv > secrets.csv.
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
+  When using 7zip data can be extracted to a file using:
+.nf
+.ft CW
+.RS
+.EX
+
+7za x <file>
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
+or to stdout using 
+.nf
+.ft CW
+.RS
+.EX
+
+7za x \-so <file>
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
+Note that when extracting to stdout 7zip will not prompt for password, but does expect a password to be typed in.
+.PP
+When using OPENSSL as a wrapper the unpack command has the format 
 .na
-unzip \-p secrets.zcsv > secrets.csv
-.ad n
-.nop . 
-.P
-When using 7zip data can be extracted to a file using 
-.na
-7za x <file>` or to stdout using `7za x \-so <file>`. Note that when extracting to stdout 7zip will not prompt for password, but does expect a password to be typed in.\\pp\-\\pp+When using OPENSSL as a wrapper the unpack command has the format `openssl enc \-d \-a \-md <digest algo> \-<encryption algo> \-pbkdf2 in <file>
+
+.BR openssl enc \-d \-a \-md <digest algo> \-<encryption algo> \-pbkdf2 in <file>
+.fi
+.ft P
+
 .ad n
 .nop where \(aqdigest algo\(aq and \(aqencryption algo\(aq are the algorithms specified in settings as \(aqdigest\(aq and \(aqalso\(aq respectively. e.g.:
 .nf
-.in +4n
+.ft CW
+.RS
 .EX
 
 openssl enc \-d \-a \-md sha256 \-aes\-256\-cbc \-pbkdf2 \-in secrets.scsv
+.RE
 .EE
 .fi
 .in
 .ad b
 .nop  
-.P
+.PP
 The type of file to export to is specified by the appropriate command-line options. If none of these are present, treasury will try to guess the file-type from it\(aqs extension. For encrypted files the extensions have the forms 
 .na
-.zcsv
+
+.BR .zcsv
+.fi
+.ft P
+
 .ad n
 .nop 
 .na
-.7zcsv
+
+.BR .7zcsv
 .ad n
 .nop or 
 .na
-.scsv
+
+.BR .scsv
 .ad n
 .nop etc.
-.SH Syncing
+.SS Syncing
  
-.P
-treasury.lua has a simple syncing system. When changes are made to a lockbox that lockbox is copied to \(aq\*(ti/.treasury/sync_out\(aq. Whenever a lockbox is opened, treasury.lua checks in \(aqsync_in\(aq for any files that it should import to update the lockbox. This means that, if files are pushed from sync_out using rsync or somekind of FTP system, to a common storage server, and if they are regularly synced from that server to sync_in, then multiple instances of treasury.lua can stay in sync by this means. Each file dropped in \(aqsync_out\(aq has the hostname included, ensuring that different systems should not overwrite each other\(aqs files. As the files are themselves copies of lockboxes, they are encrypted as the lockboxes are. However, this does mean that the same password has to be used for the same lockbox on all systems that are synced this way.
+.PP
+treasury.lua has a simple syncing system. When changes are made to a lockbox that lockbox is copied to a \(aqsync_out\(aq directory (default \(aq/.treasury/sync_out' ). Whenever a lockbox is opened, treasury.lua checks a 'sync_in' directory (default /.treasury/sync_in) for any files that it should import to update the lockbox. This means that, if files are pushed from sync_out using rsync or some kind of FTP system, to a common storage server, and if they are regularly synced from that server to sync_in, then multiple instances of treasury.lua can stay in sync by this means. Syncing adds or overwrites entries, but never deletes them if they are missing in the imported sync file. Unfortunately entries that are outright deleted have to be deleted on all systems manually.
+.PP
+Each file dropped in \(aqsync_out\(aq have the hostname included in their filename, thus ensuring that different systems should not overwrite each other\(aqs files. As the files are themselves copies of lockboxes, they are encrypted as the lockboxes are. Export to \(aqsync_out\(aq does not require decrypting the files, so no passwords are asked for, and the process can be run automated or on a schedule out of cron.
+.PP
+Files can be copied from a common server into the \(aqsync_in\(aq directroy. When a request is made to lookup a value from a lockbox, treasury.lua will check for any imports from \(aqsync_in\(aq first, so that it looks u from an up-to-date version of the file. treasury.lua tries to ask for passwords only once, and thus will ask for the password for the destination lockbox, and try using that to open the \(aqsync\(aq files. If this fails it will then ask for the password of any sync file that doesn\(aqt work with the destination lockboxes password. For this reason it\(aqs likely a good idea to use the same lockbox passwords on all systems that will be synched, otherwise the burden of typing in passwords for different systems can become oppressive.
+.PP
+Alternatively syncing can be controlled more manually using the \(aqsync\(aq and \(aqsend\(aq command-line options of treasury.lua. The \(aqsend\(aq command is used to just send a lockbox, or lockboxes to the specified destination. It will do this regardless of whether those lockboxes have changed. \(aqsend\(aq does this without decrypting the lockboxes, and thus does not have to ask the user for a password, making it suitable for automated or scheduled use. When producing output files, \(aqsend\(aq includes the hostname of the system in the resulting file so that sync files from multiple hosts can share the same directory on a central server, allowing these hosts to all sync from the same central authority. \(aqsend\(aq has two possible usages:
+.SS Send a specific lockbox
+ 
+.nf
+.ft CW
+.RS
+.EX
+
+treasury.lua send <box path> <destination>
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
+in the above use case the box at <box path> is sent to directory "<destination>". The use of the box file path, rather than the box name, allows sending lockbox files that aren't in the usual working directory of treasury. Since treasury v1.14 the <destination> part of a send command can be an ssh: url.
+.SS Send all known lockboxes
+ 
+.nf
+.ft CW
+.RS
+.EX
+
+treasury.lua send <destination>
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
+in the above use case all lockboxes "known" to treasury (that is found in the standard treasury working directory) are sent to "<destination>". The use of the box file path, rather than the box name, allows sending lockbox files that aren't in the usual working directory of treasury. Since treasury v1.14 the <destination> part of a send command can be an ssh: url.
+.PP
+There are two commands relating to importing sync files:
+.PP
+.in +2
+The "update" command is driven from known lockboxes. For each lockbox in the working directory it searches for matching sync files in the \(aqsync_in\(aq directory and imports them. The update command takes no arguments.
+.br
+.in
+
+.PP
+.in +2
+The "sync" command is driven from "sync files". It searches for such files in a path, and imports imports them, creating new lockboxes if needed. The sync command accepts arguments that are paths to sync files. If no such path is given it will search for files in the "sync_in" directory. The "sync" command can accept ssh: urls as input file paths.
+.br
+.in
+
+.SS Examples
+ 
+.PP
+update all existing lockboxes:
+.nf
+.ft CW
+.RS
+.EX
+
+treasury.lua update
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
+sync from all/any files found in \(aqsync_in\(aq directory, creating lockboxes if they don\(aqt already exist
+.nf
+.ft CW
+.RS
+.EX
+
+treasury.lua sync
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
+sync from files found at paths
+.nf
+.ft CW
+.RS
+.EX
+
+treasury.lua sync /var/sync_in/*.sync /home/sync/treasury/*.sync
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
+.PP
+sync from files on an ssh server
+.nf
+.ft CW
+.RS
+.EX
+
+treasury.lua sync ssh:myserver/sync/treasury/*.sync
+.RE
+.EE
+.fi
+.in
+.ad b
+.nop  
 .SH TOTP
- 
-.P
+
+.PP
 TOTP is a system that generates an authentication code from the combination of a shared, secret key and the current time. To generate TOTP codes with treasury.lua you must first store the secret key as you would any other secret, probably using \(aqsite name\(aq as the key:
 .nf
-.in +4n
+.ft CW
+.RS
 .EX
 
  treasury.lua add sites_totp mysite KS1AAEHGB42KD9NCP
+.RE
 .EE
 .fi
 .in
 .ad b
 .nop  
-.P
+.PP
 Then a TOTP code can be generated from the secret key using:
 .nf
-.in +4n
+.ft CW
+.RS
 .EX
 
  treasury.lua get sites_totp mysite \-totp
+.RE
 .EE
 .fi
 .in
 .ad b
 .nop  
-.P
-The 
-.na
-\-totp
-.ad n
-.nop option to the \(aqget\(aq command will calculate a TOTP code from the stored value, and display that instead of the stored value itself. This requires the stored value to be a base32 encoded secret. The TOTP calculation is google-compatible (6 digits, period 30 seconds).
+.PP
+The "-totp" option to the \(aqget\(aq command will calculate a TOTP code from the stored value, and display that instead of the stored value itself. This requires the stored value to be a base32 encoded secret. The TOTP calculation is google-compatible (6 digits, period 30 seconds).
 .SH Attacks and Vulnerabilities
- 
-.P
+
+.PP
 treasury.lua passes data in plaintext to the openssl command in order to have it encrypted, and receives it from the openssl command when it is decypted. This means that anyone who can attach an strace to treasury.lua could see this data. If the \(aqresist_strace\(aq setting is turned on, then this becomes more difficult to achieve, but as strace and other such tools can be used to change the code of a running program, the possibility exists to disable the \(aqresist_strace\(aq feature. However, anyone who had the ability to strace treasury.lua likely has the ability to modify it\(aqs program code on disk, or install a keylogger and obtain the password, or any number of other attacks. 
-.P
+.PP
 The other major vulnerability of treasury.lua is leaving sensitive data around on the disk. treasury.lua generally holds decrypted data in memory, but there are two or three ways it could get transferred to disk:
 .SS Coredumps
- 
-.P
+
+.PP
 As a coredump is a dump of the programs code and data, it can contain decrypted secrets. The \(aqcoredumps\(aq setting should be set on (\(aqy\(aq) to prevent the production of coredumps.
 .SS Swapping
- 
-.P
+
+.PP
 If swap partitions or swap files are being used to provide virtual memory, then the code and data of treasury.lua can get swapped out to disk. The \(aqmlock\(aq option, if turned on, should prevent this, but issues can then arise with OS level limits on the number of locked pages. Alternately consider if you really need a swap partition on a modern machine, with all the memory modern machines tend to have. Perhaps it\(aqs worth running treasury.lua on a lightweight machine (e.g. a Raspberry Pi) without swap and accessing it over an encrypted channel (e.g. ssh) to obtain secrets?
 .SS Plaintext import or export files
- 
-.P
+
+.PP
 If secrets are imported from plaintext files, or exported to plaintext files, then the data of those files can be left on disk. In the case of plaintext files, you can turn on \(aqscrub_files\(aq, and treasury.lua will attempt to overwrite the files with random data after importing them. HOWEVER, you should not do this on an SSD drive, as these drives will only support so many write operations per sector. Furthermore you should be aware that modern filesystems do a lot of magic in the background, and so might keep a backup of a file, or might decide that instead of overwriting the existing data it is more efficent to create a new file, leaving the old data still on the drive.
 .SS Root can access keyring
-  If the keyring feature is used, then the root user will be able to switch users, or log in as other users, and read their encrypted files. However, the root user is so powerful that they can attack users in any number of ways, using keyloggers, changing the treasury.lua program, etc, etc. Keyring access might make it easier, but even with the keyring feature turned off they can still monitor the input/activity of users. You should never unpack encrypted files on systems you don\(aqt own.   
+ If the keyring feature is used, then the root user will be able to switch users, or log in as other users, and read their encrypted files. However, the root user is so powerful that they can attack users in any number of ways, using keyloggers, changing the treasury.lua program, etc, etc. Keyring access might make it easier, but even with the keyring feature turned off they can still monitor the input/activity of users. You should never unpack encrypted files on systems you don\(aqt own.  

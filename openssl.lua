@@ -8,6 +8,8 @@ str="openssl enc -a -md " .. config:get("digest") .." -"..config:get("algo") .. 
 -- .. " -iter 1000"
 if strutil.strlen(output_path) > 0 then str=str .. " -out " .. output_path end
 
+if GlobalDebug == true then io.stderr:write("open_encrypt: "..str.."\n") end
+
 Proc=process.PROCESS(str, "ptystream")
 
 PtyS=Proc:get_pty()
@@ -32,6 +34,9 @@ if strutil.strlen(input_path) > 0 then str=str .. " -in " .. input_path end
 
 args="ptystream"
 if noerror==true then args=args.." errnull" end
+
+if GlobalDebug == true then io.stderr:write("open_decrypt: "..str.."\n") end
+
 Proc=process.PROCESS(str, args)
 
 PtyS=Proc:get_pty()

@@ -1,3 +1,14 @@
+1.14 (2026-06-27)
+-----------------
+  * sort output of 'show-config' for better readability
+  * fixes/improvements to 'sync' system
+  * mimimize asking for passwords when importing/synching
+  * 'sync' system now supports getting/sending from ssh: urls
+  * sync_in/sync_out directories are now configurable
+  * '-debug' option added to command-line
+  * '-nosync' option added to command-line
+
+
 1.13 (2024-12-29)
 -----------------
   * fix for issues with qrcode display via terminal sixel mode

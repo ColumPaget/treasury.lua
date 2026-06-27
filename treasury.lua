@@ -85,6 +85,8 @@ end
 S:close()
 end
 
+
+
 end
 
 
@@ -109,12 +111,22 @@ end
 
 
 config.output=function(self)
-local key, value
+local key, value, i
+local sorted={}
 
+--lua has no good way of sorting a table by keys/names
 for key,value in pairs(self.items)
 do
-		print("'"..key.."'="..tostring(value))
+    table.insert(sorted, key);
 end
+
+table.sort(sorted)
+
+for i,key in pairs(sorted)
+do
+		print("'"..key.."'="..tostring(self.items[key]))
+end
+
 end
 
 
@@ -149,6 +161,8 @@ config:set("scrub_files", "n")
 config:set("resist_strace", "n")
 config:set("keyring", "n")
 config:set("keyring_timeout", "3600")
+config:set("sync_in",  process.getenv("HOME") .. "/.treasury/sync_in/")
+config:set("sync_out", process.getenv("HOME") .. "/.treasury/sync_out/")
 
 config:load()
 
@@ -223,6 +237,61 @@ if str==".ssljson" then return("ssl.json") end
 return(string.sub(extn, 2))
 end
 
+
+
+--this is a function that turns a comma-separated list of patterns into a list of files
+--with support for doing that over ssh
+
+
+function get_filelist_ssh(files, pattern)
+local S, str, path
+
+S=stream.STREAM(pattern, "l")
+if S ~= nil
+then
+  str=S:readln()
+  while str ~= ni
+  do
+  str=strutil.trim(str)
+  path=filesys.dirname(pattern) .. "/" .. filesys.basename(str)
+  table.insert(files, path)
+  str=S:readln()
+  end
+  S:close()
+end
+
+end
+
+function get_filelist_glob(files, pattern)
+local glob, path
+
+glob=filesys.GLOB(pattern)
+path=glob:next()
+while path ~= nil
+do
+table.insert(files, path)
+path=glob:next()
+end
+
+end
+
+function get_filelist(patterns)
+local toks, pattern
+local files={}
+
+toks=strutil.TOKENIZER(patterns, ",", "Q")
+pattern=toks:next()
+while pattern ~= nil
+do
+pattern=strutil.trim(pattern)
+if string.sub(pattern, 1, 4) == "ssh:" then get_filelist_ssh(files, pattern) 
+else get_filelist_glob(files, pattern)
+end
+pattern=toks:next()
+end
+
+return files
+end
 
 function ScrubFile(path)
 local S, str, len
@@ -351,12 +420,14 @@ end
 function RunClipboardCmd(cmd, text)
 local proc, S
 
+  if GlobalDebug == true then io.stderr:write("RunClipboardCmd: "..tostring(cmd) .. "\n") end
   proc=process.PROCESS(cmd)
   if proc ~= nil
   then
 	S=proc:get_stream()
 	if S ~= nil
 	then
+  		if GlobalDebug == true then io.stderr:write("ClipboardCmd SendText: "..tostring(text) .. "\n") end
 		S:writeln(text.."\n")
 		S:commit()
 		proc:wait_exit();
@@ -370,13 +441,20 @@ local cmd
 
 cmd=FindClipboardCmd()
 
+-- if use_osc52 is set it means 'force use of xterm sequences to set clipboard'
 if use_osc52 == true
 then
-	Term:xterm_set_clipboard(text)
+  if GlobalDebug == true then io.stderr:write("xterm-clipboard send: "..tostring(text) .. "\n") end
+  Term:xterm_set_clipboard(text)
 elseif strutil.strlen(cmd) > 0
 then
-   if cmd == "xterm" then Term:xterm_set_clipboard(text)
-   else RunClipboardCmd(cmd, text)
+   -- if we didn't find a command to use, we will fall back to 'xterm'
+   if cmd == "xterm" 
+   then 
+      if GlobalDebug == true then io.stderr:write("xterm-clipboard send: "..tostring(text) .. "\n") end
+      Term:xterm_set_clipboard(text)
+   else 
+    RunClipboardCmd(cmd, text)
    end
 end
 
@@ -390,10 +468,12 @@ local str
 if strutil.strlen(key_id) > 0 and tonumber(timeout) > 0
 then
   str="cmd:keyctl timeout " .. key_id .. " " .. tostring(timeout)
+  if GlobalDebug == true then io.stderr:write("set lifetime/timeout for key: "..key_id.."  "..str .. "\n") end
   S=stream.STREAM(str, "")
   if S ~= nil
   then
     str=S:readln()
+    if GlobalDebug == true then io.stderr:write(tostring(str).."\n") end
     S:close()
   end
 end
@@ -406,10 +486,12 @@ local str, S
 
 if strutil.strlen(id) > 0
 then
+  if GlobalDebug == true then io.stderr:write("get key: "..id .. "\n") end
   S=stream.STREAM("cmd:keyctl pipe "..id,"rw stderr2null")
   if S ~= nil
   then
      str=strutil.trim(S:readln())
+     if GlobalDebug == true then io.stderr:write(tostring(str).."\n") end
      S:close()
   end
 end
@@ -419,12 +501,17 @@ end
 
 
 keyring.get=function(self, lockbox_name)
-local S, id
+local S, id, str
 
-S=stream.STREAM("cmd:keyctl search @s user 'treasury.lua:"..lockbox_name.."'","rw stderr2null")
+
+str="cmd:keyctl search @s user 'treasury.lua:"..lockbox_name.."'"
+if GlobalDebug == true then io.stderr:write("keyring.get: " .. str .. "\n") end
+
+S=stream.STREAM(str, "rw stderr2null")
 if S ~= nil
 then
 id=strutil.trim(S:readln())
+if GlobalDebug == true then io.stderr:write("got key for: ".. lockbox_name.. " key=" .. id.."\n") end
 if id ~= nil then self:set_timeout(id, config:get("keyring_timeout")) end
 S:close()
 end
@@ -439,12 +526,15 @@ local id, str
 
 
 str="cmd:keyctl padd user 'treasury.lua:"..lockbox_name.."' "..keyring
+if GlobalDebug == true then io.stderr:write("add key: ".. str.. "\n") end
 S=stream.STREAM(str,  "")
 if S ~= nil
 then
 S:writeln(password.."\r\n")
 S:commit()
 id=strutil.trim(S:readln())
+if GlobalDebug == true then io.stderr:write("add id: " .. id.. "\n") end
+
 S:close()
 end
 return(id)
@@ -478,6 +568,33 @@ end
 
 
 
+function SSHRunCommand(cmd, url, dest)
+local S, toks, server, path, dest_path, str
+
+toks=strutil.TOKENIZER(url, "/")
+server=toks:next()
+path=toks:remaining()
+
+str=server .. "/" .. cmd .. " " .. path
+if strutil.strlen(dest) > 0 
+then 
+  toks=strutil.TOKENIZER(dest, "/")
+  server=toks:next()
+  dest_path=toks:remaining()
+  str=str.." "..dest_path 
+end
+
+if GlobalDebug == true then io.stderr:write("SSHRunCommand: ".. str.."\n") end
+
+S=stream.STREAM(str, "x")
+if S ~= nil
+then
+  str=S:readdoc()
+  print(str)
+  S:close()
+end
+
+end
 function SyncInit()
 local sync={}
 
@@ -485,20 +602,22 @@ local sync={}
 sync.load=function(self, path, password)
 local tmp
 
+if GlobalDebug == true then io.stderr:write("sync:load '".. tostring(path) .. "' with password='".. tostring(password) .."'\n") end
+
 tmp=LockboxCreate("", path, password)
 if tmp==nil then return nil end
 if tmp:examine() == false then return nil end
 if strutil.strlen(tmp.name) == 0 then return nil end
 
---if tmp.password == nil then
-tmp.password=ui:ask_password("Enter Password for sync file '"..filesys.basename(path).."': ", tmp.passhint)
---end
-
 tmp.suppress_errors=true
 if tmp:load_items() == false
 then 
-ui:error("Failed to open sync file '"..path.."'. Wrong password?")
-return nil
+  tmp.password=ui:ask_password("Enter Password for sync file '"..filesys.basename(path).."': ", tmp.passhint)
+  if tmp:load_items() == false
+	then
+    ui:error("Failed to open sync file '"..path.."'. Wrong password?")
+    return nil
+  end
 end
 
 return tmp
@@ -537,49 +656,150 @@ end
 end
 
 
-
-sync.update=function(self, box)
-local path, tmp
+sync.update_box=function(self, box, path)
 local changed=false
+local tmp
 
-path=process.getenv("HOME") .. "/.treasury/sync_in/*-"..box.name..".sync"
-files=filesys.GLOB(path)
-
-path=files:next()
-while path ~= nil
-do
+if GlobalDebug == true then io.stderr:write("sync:update_box '".. tostring(box.name) .. " from '" .. tostring(path) .. "' with password: '" .. tostring(box.password) .. "'\n") end
 tmp=self:load(path, box.password)
 if tmp ~= nil
 then 
+  if strutil.strlen(box.password) == 0 then box.password=tmp.password end
+  if strutil.strlen(box.passhint) == 0 then box.passhint=tmp.passhint end
+
   if hosts:check_version(tmp.machine_id, tmp.name, tmp.version)==true
   then 
     print("sync importing..." ..path)
     self:import(box, tmp)
-    if strutil.strlen(box.password) == 0 then box.password=tmp.password end
-    if strutil.strlen(box.passhint) == 0 then box.passhint=tmp.passhint end
     changed=true
   end
+
   tmp:destroy()
+
+  return(changed)
+end
 end
 
-path=files:next()
+
+
+
+
+sync.send_path=function(self, path, dir)
+local dst_path, final_path, name
+
+
+if strutil.strlen(dir) > 0
+then
+  
+   name=filesys.filename(path)
+   dst_path=dir .. sys.hostname() .. "-" .. name ..".tmp"
+
+   if string.sub(dir, 1, 4) == "ssh:" then SSHRunCommand("mkdir -p", dir)
+   else filesys.mkdirPath(dst_path)
+   end
+  
+   filesys.copy(path, dst_path)
+   final_path=dir.. sys.hostname() .. "-" .. name ..".sync"
+
+   if string.sub(dir, 1, 4) == "ssh:" then SSHRunCommand("mv -f ", dst_path, final_path)
+	 else filesys.rename(dst_path, final_path)
+	 end
+   
+   print("send lockbox '" .. name .."' at '"..path.."' to '"..final_path.."'")
 end
 
-if changed==true then box:save() end
+end
+
+
+
+sync.send=function(self, box, dir)
+self:send_path(box.path, dir)
+end
+
+
+
+
+-- for each EXISTING lockbox, try to find an import
+-- file that can be used to update it
+sync.update=function(self, box)
+local path, files, i, tmp
+local changed=false
+
+path=config:get("sync_in") .. "*-".. box.name .. ".sync"
+files=get_filelist(path)
+if GlobalDebug == true then io.stderr:write("update lockbox: '" .. box.name .. "' from '" .. tostring(path) .."' ".. tostring(#files) .. " files found.\n") end
+
+for i,path in ipairs(files)
+do
+tmp=LockboxFromFile(path)
+if tmp ~= nil
+then
+if strutil.strlen(box.password) > 0 then tmp.password=box.password end
+tmp:load(false)
+if self:import(box, tmp) then changed=true end
+end
+
+end
+
+if changed==true then box:save() 
+else 
+  if GlobalDebug == true then io.stderr:write("update lockbox: '" .. box.name .. "' lockbox unchanged. not saving.\n") end
+end
+
+
 return changed
 end
 
 
-sync.send=function(self, box)
-local dst_path, final_path
+sync.update_by_name=function(self, name)
+local box
 
-dst_path=process.getenv("HOME") .. "/.treasury/sync_out/" .. sys.hostname() .. "-" .. box.name ..".tmp"
-filesys.mkdirPath(dst_path)
-filesys.copy(box.path, dst_path)
-final_path=process.getenv("HOME") .. "/.treasury/sync_out/" .. sys.hostname() .. "-" .. box.name ..".sync"
-filesys.rename(dst_path, final_path)
+box=lockboxes:find(name)
+self:update(box)
 
 end
+
+
+-- import a bunch of files, use the name of the imported file to
+-- update or create a lockbox for it
+sync.import_items=function(self, item_list)
+local i, result, error, toks, str
+local glob, item
+
+if strutil.strlen(item_list) == 0 then item_list=config:get("sync_in") .. "/*.sync" end
+
+files=get_filelist(item_list)
+if GlobalDebug == true then io.stderr:write("sync from '" .. item_list .. "' " .. tostring(#files) .. " files found.") end
+
+for i, item in ipairs(files)
+do
+  result,error=lockboxes:sync(item) 
+  if result ~= true then ui:error(error) end
+end
+
+end
+
+
+sync.export_items=function(self, cmd)
+local list, dir
+
+dir=cmd.dir
+if strutil.strlen(dir)==0
+then
+    dir=cmd.box
+    if strutil.strlen(dir)==0 then dir=config:get("sync_out") end
+
+    list=lockboxes:paths()
+    for i,item in pairs(list)
+    do
+	    self:send_path(item, dir)    
+    end
+else
+	self:send_path(cmd.box, cmd.dir)    
+end
+
+end
+
 
 
 return sync
@@ -690,6 +910,8 @@ str="openssl enc -a -md " .. config:get("digest") .." -"..config:get("algo") .. 
 -- .. " -iter 1000"
 if strutil.strlen(output_path) > 0 then str=str .. " -out " .. output_path end
 
+if GlobalDebug == true then io.stderr:write("open_encrypt: "..str.."\n") end
+
 Proc=process.PROCESS(str, "ptystream")
 
 PtyS=Proc:get_pty()
@@ -714,6 +936,9 @@ if strutil.strlen(input_path) > 0 then str=str .. " -in " .. input_path end
 
 args="ptystream"
 if noerror==true then args=args.." errnull" end
+
+if GlobalDebug == true then io.stderr:write("open_decrypt: "..str.."\n") end
+
 Proc=process.PROCESS(str, args)
 
 PtyS=Proc:get_pty()
@@ -805,19 +1030,20 @@ end
 
 
 ui.ask_password=function(self, prompt, hint)
-local str
+local str 
+local prefix="~e"
+local postfix=""
 
 if Mode=="menu"
-then
-Term:move(0, Term:height() -2)
-if strutil.strlen(hint) > 0 then Term:puts("Password hint: "..hint.."\n") end
-str=Term:prompt("~B~w"..prompt.."~>", config:get("pass_hide"))
-Term:puts("~0")
-else
-if strutil.strlen(hint) > 0 then Term:puts("Password hint: "..hint.."\n") end
-str=Term:prompt(prompt.."~>", config:get("pass_hide"))
-Term:puts("~0\n")
+then 
+prefix="~B~w"
+postfix="~>"
+Term:move(0, Term:height() -2) 
 end
+
+  if strutil.strlen(hint) > 0 then Term:puts("Password hint: "..hint.."\n") end
+  str=Term:prompt(prefix .. prompt .. postfix, config:get("pass_hide"))
+  Term:puts("~0")
 
 return str
 end
@@ -850,6 +1076,23 @@ end
 return(ui)
 end
 
+-- this is not a member of LockBox
+function LockboxFromFile(path)
+local S, lb
+
+if GlobalDebug == true then io.stderr:write("LockboxFromFile: '"..tostring(path).."'\n") end
+
+S=stream.STREAM(path, "r")
+if S ~= nil
+then
+lb=LockboxCreate("", path)
+if lb ~= nil then lb:read_info(S) end
+S:close()
+end
+
+return lb
+end
+
 
 
 function LockboxCreate(name, path, password, hint)
@@ -867,6 +1110,7 @@ lockbox.items={}
 if strutil.strlen(path) == 0 then lockbox.path=lockboxes:path(name)
 else lockbox.path=path
 end
+
 
 
 -- from here on is member functions of 'lockbox'
@@ -900,6 +1144,8 @@ end
 
 lockbox.save=function(self, do_sync)
 local str, S, key, item, name, value
+
+if GlobalDebug == true then io.stderr:write("Saving lockbox: "..self.name .. " to path: "..self.path .."\n") end
 
 if strutil.strlen(self.password) == 0 then self.password=ui:ask_password("Password for "..self.name..": ~>") end
 
@@ -1107,16 +1353,23 @@ end
 
 
 
-lockbox.read=function(self)
+lockbox.read=function(self, dosync)
 local S
 local str=""
 local queried_password=false
+
+if GlobalNoSync ~= true and dosync ~= false then sync:update(self) end
 
 S=stream.STREAM(self.path, "r")
 if S ~= nil
 then
 self:read_info(S)
-if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" then self.password=keyring:get(self.name) end
+if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" 
+then 
+self.password=keyring:get(self.name) 
+if GlobalDebug == true then io.stderr:write("Using keyring: got "..tostring(self.password).."\n") end
+end
+
 if strutil.strlen(self.password) == 0 
 then
 	self.password=ui:ask_password("Password for "..self.name..": ~>", self.passhint) 
@@ -1135,21 +1388,20 @@ end
 
 
 -- load without importing synced items
-lockbox.load_items=function(self)
+lockbox.load_items=function(self, dosync)
 local str
 
-str=self:read()
+str=self:read(dosync)
 if str==nil then return false end
 self:parse_items(str)
 return true
 end
 
 
-lockbox.load=function(self)
+lockbox.load=function(self, dosync)
 local result
 
-result=self:load_items()
-sync:update(self)
+result=self:load_items(dosync)
 return result 
 end
 
@@ -1269,6 +1521,24 @@ return boxes
 end
 
 
+lockboxes.paths=function(self)
+local glob, item
+local boxes={}
+
+
+glob=filesys.GLOB(self:path("*"))
+item=glob:next()
+while item ~= nil
+do
+table.insert(boxes, item)
+item=glob:next()
+end
+
+return boxes
+end
+
+
+
 lockboxes.find=function(self, name)
 local key, item
 
@@ -1280,7 +1550,7 @@ end
 
 for key,item in ipairs(self.items)
 do
-if item.name==name then return(item) end
+if item.name == name then return(item) end
 end
 
 --if we get here we didn't find it, try syncing
@@ -1321,31 +1591,35 @@ return str
 end
 
 
+
 lockboxes.sync=function(self, path)
 local tmp, box, name
 
-tmp=SyncOpenImport(path)
-if tmp == nil then return false end
+if GlobalDebug == true then io.stderr:write("sync lockbox from '" .. path .. "'\n") end
+
+tmp=LockboxFromFile(path)
+if tmp == nil then return false,"cant open: "..tostring(path) end
 
 box=lockboxes:find(tmp.name)
 if box == nil
 then
  box=LockboxCreate(tmp.name, nil, tmp.password, tmp.passhint)
 else 
-  if box:load() == false then return false end
+  if box:load() == false then return false,"incorrect password" end
 end
 
 if box ~= nil
 then
-box:update(tmp)
+sync:update_box(box, path)
 box:save()
 ScrubFile(path)
 filesys.unlink(path)
 return true
 end
 
-return false
+return false,"unable to create lockbox"
 end
+
 
 
 lockboxes.sync_push=function(self)
@@ -1357,6 +1631,7 @@ sync:send(item)
 end
 
 end
+
 
 
 lockboxes:load()
@@ -1496,7 +1771,7 @@ return("csv")
 end
 
 
-importer.import=function(self, box, path, fieldlist, import_type)
+importer.import_box=function(self, box, path, fieldlist, import_type)
 local ftype, S
 
 self.items_imported=0
@@ -1531,6 +1806,24 @@ end
 print("IMPORTED: " .. tostring(self.items_imported) .. " lines")
 box:save(true)
 end
+
+
+
+importer.import=function(self, cmd)
+local S, str, toks
+
+if strutil.strlen(cmd.path) == 0
+then
+ui:error("import command must have format: treasury.lua import <lockbox> <import path>")
+return
+end
+
+box=lockboxes:find(cmd.box)
+if box == nil then box=NewLockbox(cmd) end
+self:import_box(box, cmd.path, cmd.fieldlist, cmd.import_type)
+
+end
+
 
 
 importer.csv_map_fields=function(self, field_map, fields)
@@ -1988,14 +2281,19 @@ do
 		elseif value=="-f" then cmd.fieldlist=args[i+1]; args[i+1]=""
 		elseif value=="-o" then cmd.output_path=args[i+1]; args[i+1]=""
 		elseif value=="-K" then config:set("keyring", "i")
+		elseif value=="-nokeyring" then GlobalNoSync=true
+		elseif value=="-nosync" then GlobalNoSync=true
+		elseif value=="-debug" then GlobalDebug=true
+		elseif cmd.type == "sync" then cmd.items=cmd.items .. value..","
 		elseif strutil.strlen(cmd.box)==0 then cmd.box=value
 		--from here on in we are treating the string not as a switch/option, but as data: paths, keynames, keyvalues, notes
+		elseif cmd.type=="send" then cmd.dir=value
 		elseif cmd.type == "import" then cmd.path=value
 		elseif cmd.type=="export"
 		then
-        if strutil.strlen(cmd.path) == 0 then cmd.path=value
-        else cmd.items=cmd.items .. value..","
-        end
+			if strutil.strlen(cmd.path) == 0 then cmd.path=value
+			else cmd.items=cmd.items .. value..","
+			end
 		elseif strutil.strlen(cmd.key)==0 then cmd.key=value
 		elseif strutil.strlen(cmd.value)==0 then cmd.value=value
 		else cmd.notes=cmd.notes.. " "..value
@@ -2226,8 +2524,8 @@ print("treasury.lua stores key-value pairs in encrypted files called 'lockboxes'
 print("usage: lua treasury.lua [action] [lockbox] [key] [value]\n")
 print("actions:")
 print("   new [lockbox]                           create a new lockbox")
-print("   list [lockbox]                          list keys in a lockbox, and comments/notes associated with them")
 print("   names [lockbox]                         list keys in a lockbox")
+print("   list [lockbox]                          list keys in a lockbox, and comments/notes associated with them")
 print("   dump [lockbox]                          dump lockbox in plain text")
 print("   add [lockbox] [key] [value]             add a key/value pair to a lockbox")
 print("   add [lockbox] [key] -g                  generate a 32bit random string, and add it to a lockbox")
@@ -2242,13 +2540,17 @@ print("   get [lockbox] [key] -qr -o <path>       get the value matching 'key' i
 print("   get [lockbox] [key] -clip               get the value matching 'key' in a lockbox, and push it to clipboard")
 print("   get [lockbox] [key] -osc52              get the value matching 'key' in a lockbox, and push it to clipboard using xterm's osc52 command")
 print("   get [lockbox] [key] -totp               get the value matching 'key' in a lockbox, and use it to calculate a totp code")
-print("   get [lockbox] [key] -K                  use '-K' if you are using keyrings, but somehow have the wrong key in your keyring")
 print("   entry [lockbox]                         enter 'data entry' mode for localbox")
 print("   shell [lockbox]                         enter 'shell' mode for localbox")
-print("   sync [path]                             sync key/value pairs from a lockbox file")
+print("   update                                  sync known lockboxes by searching for matching 'sync' files found in the 'sync_in' directory (default ~/.treasury/sync_in)")
+print("   update [lockbox]                        sync specified known lockbox by searching for matching 'sync' files found in the 'sync_in' directory (default ~/.treasury/sync_in)")
+print("   sync                                    sync key/value pairs from 'sync' files found in the 'sync_in' directory (default ~/.treasury/sync_in)")
+print("   sync [path]                             sync key/value pairs from a sync or lockbox file(s). 'path' can be a pattern like '/home/user/incoming/*', or an ssh path like 'ssh:myserver/sync/treasury/*.sync'")
+print("   sync [path] [path] ...                  sync key/value pairs from a sync or lockbox file(s). 'path' can be a pattern like '/home/user/incoming/*', or an ssh path like 'ssh:myserver/sync/treasury/*.sync'")
+print("   send [path] [dir]                       send lockbox at <path> to a directory <dir>for syncing")
+print("   send [dir]                              send all known lockboxes to a directory for syncing")
 print("   chpw [box]                              change password for a lockbox")
 print("   find [lockbox] [search pattern]         find key/value pairs matching 'search pattern'")
-print("   sync [path]                             sync key/value pairs from a lockbox file")
 print("   import [lockbox] [path]                 import key/value pairs from a file")
 print("   export [lockbox] [path]                 export key/value pairs to a file")
 print("   export [lockbox] [path] -csv            export key/value pairs from a csv file")
@@ -2270,6 +2572,11 @@ print("   -help                                   print help")
 print("   help                                    print help")
 print("   -?                                      print help")
 
+print("\noptions:\n")
+print("   -K                                      don't use keyring for getting lockbox password")
+print("   -nokeyring                              don't use keyring for getting lockbox password")
+print("   -nosync                                 don't update a lockbox with files from the 'sync_in' directory before names/list/dump/get commands")
+
 print("")
 print("The type of file for import and export can be set using the -csv, -xml, -json, -zcsv, -zxml, -zjson, -7zcsv, -7zxml, -7zjson, -scsv, -sxml, -sjson options. Without these the import and export commands will try to guess the filetype.")
 print("The import command examines the file at [path] and can open csv, xml and json files, including those that have been packaged/encrypted with pkzip/infozip, 7zip, or simply encrypted with openssl.");
@@ -2279,8 +2586,9 @@ end
 
 
 Mode="cli"
-Version="1.13"
-
+Version="1.14"
+GlobalDebug=false
+GlobalNoSync=false
 
 function NewLockbox(cmd)
 local name
@@ -2401,14 +2709,12 @@ end
 function GetDataFromBox(box, key, cmd)
 local item
 
-	item=box:get(key)
-	Term:puts("\n")
-	if item ~= nil 
-	then 
-    OutputItem(item, cmd)
-	else 
-    ui:error("key not found in lockbox")
-	end
+   item=box:get(key)
+   Term:puts("\n")
+   if item ~= nil then OutputItem(item, cmd)
+   else ui:error("key not found in lockbox")
+   end
+
 end
 
 
@@ -2500,31 +2806,7 @@ end
 
 
 
-function ImportData(cmd)
-local S, str, toks
 
-if strutil.strlen(cmd.path) == 0
-then
-ui:error("import command must have format: treasury.lua import <lockbox> <import path>")
-return
-end
-
-box=lockboxes:find(cmd.box)
-if box == nil then box=NewLockbox(cmd) end
-importer:import(box, cmd.path, cmd.fieldlist, cmd.import_type)
-
-end
-
-
-
-function SyncData(cmd_line)
-local i
-
-for i=2,#cmd_line,1
-do
-if lockboxes:sync(cmd_line[i]) ~= true then ui:error("incorrect password") end
-end
-end
 
 
 
@@ -2545,9 +2827,15 @@ config=ConfigInit()
 --but haven't figured it out yet
 --str="openlog=treasury.lua "
 
+-- cannot use +noipc or +nopid with keyring. 
+-- +nopid currently calls 'setsid', perhaps wrongly and this creates a new session, so we cannot lookup keys in the session keyring
+-- +noipc is more mysterious. It definitely prevents looking up keys in the keyring, but adds no setsid, nor any syscalls that return EPERM
+str="nosu security='syscall_allow=group:keyring user+client"
+
 if config.coredumps==false then str=str.."coredumps=0 " end
 if config.mlock==true then str=str.."mlock " end
 if config.resist_strace==true then str=str.."resist_strace " end
+
 process.configure(str)
 
 --next setup the terminal. We do this early as other functions need a terminal to write to
@@ -2570,23 +2858,26 @@ end
 TreasuryInit()
 cmd=CommandLineParse(arg)
 
+if GlobalDebug == true then io.stderr:write("Debugging Active\n") end
 
 if cmd.type == "new" then NewLockbox(cmd)
+elseif cmd.type == "list" or cmd.type == "ls" or cmd.type=="names" then ListLockbox(cmd)
+elseif cmd.type == "dump" then DumpData(cmd)
 elseif cmd.type == "add" or cmd.type=="set" then DepositData(cmd)
 elseif cmd.type == "del" or cmd.type=="rm" then RemoveData(cmd)
-elseif cmd.type == "entry" then EnterData(cmd)
-elseif cmd.type == "list" or cmd.type == "ls" or cmd.type=="names" then ListLockbox(cmd)
 elseif cmd.type == "get"  then GetData(cmd)
+elseif cmd.type == "entry" then EnterData(cmd)
+elseif cmd.type == "shell" then Shell(cmd)
+elseif cmd.type == "update" then sync:update_by_name(cmd.box)
+elseif cmd.type == "sync" then sync:import_items(cmd.items)
+elseif cmd.type == "send" then sync:export_items(cmd)
+elseif cmd.type == "chpw" then ChangePassword(cmd)
 elseif cmd.type == "find"  then FindData(cmd)
-elseif cmd.type == "dump" then DumpData(cmd)
-elseif cmd.type == "import" then ImportData(cmd)
-elseif cmd.type == "sync" then SyncData(arg)
-elseif cmd.type == "push" then lockboxes:sync_push()
+elseif cmd.type == "import" then importer:import(cmd)
 elseif cmd.type == "export" then exporter:export(cmd)
+elseif cmd.type == "push" then lockboxes:sync_push()
 elseif cmd.type == "show-config" then config:output()
 elseif cmd.type == "config-set" then config:change(arg[2], arg[3])
-elseif cmd.type == "shell" then Shell(cmd)
-elseif cmd.type == "chpw" then ChangePassword(cmd)
 elseif cmd.type == "rebuild" then Rebuild(cmd)
 elseif cmd.type == "version" or cmd.type == "-version" or cmd.type == "--version" then print("treasury.lua "..Version)
 elseif cmd.type == "--help" or cmd.type == "-help" or cmd.type == "help" or cmd.type == "-?" then PrintHelp()

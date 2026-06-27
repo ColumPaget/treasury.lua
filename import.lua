@@ -131,7 +131,7 @@ return("csv")
 end
 
 
-importer.import=function(self, box, path, fieldlist, import_type)
+importer.import_box=function(self, box, path, fieldlist, import_type)
 local ftype, S
 
 self.items_imported=0
@@ -166,3 +166,21 @@ end
 print("IMPORTED: " .. tostring(self.items_imported) .. " lines")
 box:save(true)
 end
+
+
+
+importer.import=function(self, cmd)
+local S, str, toks
+
+if strutil.strlen(cmd.path) == 0
+then
+ui:error("import command must have format: treasury.lua import <lockbox> <import path>")
+return
+end
+
+box=lockboxes:find(cmd.box)
+if box == nil then box=NewLockbox(cmd) end
+self:import_box(box, cmd.path, cmd.fieldlist, cmd.import_type)
+
+end
+

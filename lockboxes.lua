@@ -91,6 +91,24 @@ return boxes
 end
 
 
+lockboxes.paths=function(self)
+local glob, item
+local boxes={}
+
+
+glob=filesys.GLOB(self:path("*"))
+item=glob:next()
+while item ~= nil
+do
+table.insert(boxes, item)
+item=glob:next()
+end
+
+return boxes
+end
+
+
+
 lockboxes.find=function(self, name)
 local key, item
 
@@ -102,7 +120,7 @@ end
 
 for key,item in ipairs(self.items)
 do
-if item.name==name then return(item) end
+if item.name == name then return(item) end
 end
 
 --if we get here we didn't find it, try syncing
@@ -143,31 +161,35 @@ return str
 end
 
 
+
 lockboxes.sync=function(self, path)
 local tmp, box, name
 
-tmp=SyncOpenImport(path)
-if tmp == nil then return false end
+if GlobalDebug == true then io.stderr:write("sync lockbox from '" .. path .. "'\n") end
+
+tmp=LockboxFromFile(path)
+if tmp == nil then return false,"cant open: "..tostring(path) end
 
 box=lockboxes:find(tmp.name)
 if box == nil
 then
  box=LockboxCreate(tmp.name, nil, tmp.password, tmp.passhint)
 else 
-  if box:load() == false then return false end
+  if box:load() == false then return false,"incorrect password" end
 end
 
 if box ~= nil
 then
-box:update(tmp)
+sync:update_box(box, path)
 box:save()
 ScrubFile(path)
 filesys.unlink(path)
 return true
 end
 
-return false
+return false,"unable to create lockbox"
 end
+
 
 
 lockboxes.sync_push=function(self)
@@ -179,6 +201,7 @@ sync:send(item)
 end
 
 end
+
 
 
 lockboxes:load()
