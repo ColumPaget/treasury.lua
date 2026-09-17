@@ -78,7 +78,7 @@ end
 
   if strutil.strlen(hint) > 0 then Term:puts("Password hint: "..hint.."\n") end
   str=Term:prompt(prefix .. prompt .. postfix, config:get("pass_hide"))
-  Term:puts("~0")
+  Term:puts("~0\n")
 
 return str
 end

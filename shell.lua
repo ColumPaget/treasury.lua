@@ -109,6 +109,7 @@ elseif cmd=="del" or cmd=="rm" or cmd=="remove" or cmd=="delete" then
  box:save(true)
 elseif cmd=="list" or cmd=="ls" then self:list(box, nil)
 elseif cmd=="find" then self:list(box, string.lower(toks:next()))
+elseif cmd=="import" then sync.update_box(box, toks:remaining())
 elseif cmd=="help"
 then
 print("list         - list entries in lockbox")
@@ -122,6 +123,7 @@ print("set  <key> <data> <notes>    - add a new entry, overwriting existing entr
 print("enter        - enter 'data entry' mode")
 print("rm   <key>   - remove an entry")
 print("del  <key>   - remove an entry")
+print("import <path>  - import a specific 'sync' file from '<path>'")
 else ui:error("Unrecognized command: ["..str.."]")
 end
 
@@ -133,6 +135,12 @@ end
 
 shell.run=function(self, cmd_line)
 local box, str, search, cmd
+
+if strutil.strlen(cmd_line.box) == 0 
+then
+  ui:error("no lockbox specified on command-line. 'shell' mode only works with a specified lockbox.")
+  return
+end
 
 box=lockboxes:find(cmd_line.box)
 if box ~= nil 

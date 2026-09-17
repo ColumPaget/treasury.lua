@@ -1,5 +1,5 @@
 Mode="cli"
-Version="1.14"
+Version="1.15"
 GlobalDebug=false
 GlobalNoSync=false
 
@@ -52,7 +52,7 @@ local box, item
 box=lockboxes:find(cmd.box)
 if box ~= nil
 then
-	if box:load() == true then box:save()
+	if box:load(true) == true then box:save()
 	else ui:error("incorrect password")
 	end
 else ui:error_no_lockbox(cmd.box)
@@ -108,7 +108,7 @@ end
 function DumpData(cmd)
 local str
 
-str=lockboxes:read(cmd.box)
+str=lockboxes:read(cmd.box, true)
 if str==nil then ui:error("incorrect password")
 -- use print not Term:puts to prevent interpretation of characters in the dump
 else print(str)
@@ -137,7 +137,7 @@ local box, item
 box=lockboxes:find(cmd.box)
 if box ~= nil
 then
-	if box:load() == true
+	if box:load(true) == true
 	then GetDataFromBox(box, cmd.key, cmd)
 	else ui:error("incorrect password")
 	end
@@ -189,7 +189,7 @@ local box, key, item, str
 box=lockboxes:find(cmd.box)
 if box ~= nil 
 then
-	box:load()
+	box:load(true)
 	for key,item in pairs(box.items)
 	do
 		if cmd.type == "names" then Term:puts(key.."\n")
@@ -282,7 +282,7 @@ elseif cmd.type == "get"  then GetData(cmd)
 elseif cmd.type == "entry" then EnterData(cmd)
 elseif cmd.type == "shell" then Shell(cmd)
 elseif cmd.type == "update" then sync:update_by_name(cmd.box)
-elseif cmd.type == "sync" then sync:import_items(cmd.items)
+elseif cmd.type == "sync" then sync:import_files(cmd.items)
 elseif cmd.type == "send" then sync:export_items(cmd)
 elseif cmd.type == "chpw" then ChangePassword(cmd)
 elseif cmd.type == "find"  then FindData(cmd)
@@ -292,6 +292,7 @@ elseif cmd.type == "push" then lockboxes:sync_push()
 elseif cmd.type == "show-config" then config:output()
 elseif cmd.type == "config-set" then config:change(arg[2], arg[3])
 elseif cmd.type == "rebuild" then Rebuild(cmd)
+elseif cmd.type == "sync-status" then sync:display_last_syncs()
 elseif cmd.type == "version" or cmd.type == "-version" or cmd.type == "--version" then print("treasury.lua "..Version)
 elseif cmd.type == "--help" or cmd.type == "-help" or cmd.type == "help" or cmd.type == "-?" then PrintHelp()
 else

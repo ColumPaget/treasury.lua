@@ -150,45 +150,17 @@ return false
 end
 
 
-lockboxes.read=function(self, boxname)
+lockboxes.read=function(self, boxname, dosync)
 local box
 local str=""
 
 box=self:find(boxname)
-if box ~= nil then str=box:read() end
+if box ~= nil then str=box:read(dosync) end
 
 return str
 end
 
 
-
-lockboxes.sync=function(self, path)
-local tmp, box, name
-
-if GlobalDebug == true then io.stderr:write("sync lockbox from '" .. path .. "'\n") end
-
-tmp=LockboxFromFile(path)
-if tmp == nil then return false,"cant open: "..tostring(path) end
-
-box=lockboxes:find(tmp.name)
-if box == nil
-then
- box=LockboxCreate(tmp.name, nil, tmp.password, tmp.passhint)
-else 
-  if box:load() == false then return false,"incorrect password" end
-end
-
-if box ~= nil
-then
-sync:update_box(box, path)
-box:save()
-ScrubFile(path)
-filesys.unlink(path)
-return true
-end
-
-return false,"unable to create lockbox"
-end
 
 
 

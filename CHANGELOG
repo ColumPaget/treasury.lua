@@ -1,3 +1,8 @@
+1.15 (2026-09-16)
+-----------------
+  * rework the 'sync' system to only ask for a password once.
+  * added 'sync-status' command to show most recent instance of each sync recieved
+
 1.14 (2026-06-27)
 -----------------
   * sort output of 'show-config' for better readability

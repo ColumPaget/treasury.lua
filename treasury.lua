@@ -172,6 +172,46 @@ return config
 
 end
 
+lockbox_passwords={}
+lockbox_passwords.items={}
+
+
+lockbox_passwords.add=function(self, name, value)
+
+self.items[name]=value
+
+
+end
+
+
+lockbox_passwords.get=function(self, name, hint)
+local queried_password=false
+local pass
+
+if strutil.strlen(self.items[name]) > 0 then return self.items[name] end
+
+pass=keyring:get(name)
+if GlobalDebug == true then io.stderr:write("Using keyring: got "..tostring(pass).."\n") end
+
+
+if strutil.strlen(pass) == 0
+then
+  pass=ui:ask_password("Password for "..name..": ~>", hint)
+  queried_password=true
+end
+
+self:add(name, pass)
+
+-- we cannot do this here, because we do not know that the password is correct. We can only do this after successfully
+-- opening a lockbox file
+-- if queried_password == true and strutil.strlen(pass) > 0 and config:get("keyring") ~= "n" then keyring:set(name, pass) end
+
+
+return pass,queried_password
+end
+
+
+
 function FindExecutable(cmd)
 local toks, tok, prog, path
 
@@ -598,36 +638,158 @@ end
 function SyncInit()
 local sync={}
 
+sync.import_hashes={}
+sync.hashes_loaded=false
+sync.hashes_changed=false
 
-sync.load=function(self, path, password)
-local tmp
 
-if GlobalDebug == true then io.stderr:write("sync:load '".. tostring(path) .. "' with password='".. tostring(password) .."'\n") end
+-- load a list of hashes of files we imported so we don't try to import the same file again
+sync.load_hashes=function(self)
+local str, toks, key, item
+local S
 
-tmp=LockboxCreate("", path, password)
-if tmp==nil then return nil end
-if tmp:examine() == false then return nil end
-if strutil.strlen(tmp.name) == 0 then return nil end
-
-tmp.suppress_errors=true
-if tmp:load_items() == false
-then 
-  tmp.password=ui:ask_password("Enter Password for sync file '"..filesys.basename(path).."': ", tmp.passhint)
-  if tmp:load_items() == false
-	then
-    ui:error("Failed to open sync file '"..path.."'. Wrong password?")
-    return nil
+if self.hashes_loaded == false
+then
+S=stream.STREAM(config:get("sync_in") ..  "/imported.hashes", "r")
+if S ~= nil
+then
+  str=S:readln()
+  while str ~= nil
+  do
+  str=strutil.trim(str)
+  toks=strutil.TOKENIZER(str, " ", "q")
+  key=toks:next()
+  item={}
+  item.when=toks:next()
+  item.hash=toks:remaining()
+  self.import_hashes[key]=item
+  str=S:readln()
   end
+
+  S:close()
+
+  self.hashes_loaded=true
+end
 end
 
-return tmp
+return(import_hashes)
 end
+
+
+
+-- save a list of hashes of files we imported so we don't try to import the same file again
+sync.save_hashes=function(self)
+local S
+local key, item 
+
+if self.hashes_changed == true
+then
+
+   S=stream.STREAM(config:get("sync_in") ..  "/imported.hashes", "w")
+   if S ~= nil
+   then
+     for key, item in pairs(self.import_hashes)
+     do
+       S:writeln(key .. " " .. item.when .. " " .. item.hash .. "\n")
+     end
+   S:close()
+   end
+   
+end
+end
+
+
+
+sync.add_hash=function(self, name, hash, lockbox)
+local item={}
+
+item.when=time.format("%Y-%m-%dT%H:%M:%S")
+item.hash=hash
+self.import_hashes[name]=item
+self.hashes_changed=true
+
+end
+
+
+sync.del_hash=function(self, path)
+
+fname=filesys.basename(path)
+self.import_hashes[fname]=nil
+
+end
+
+
+sync.check_hash=function(self, path)
+local fname, fhash, item
+
+fname=filesys.basename(path)
+fhash=hash.hashfile(path, "sha1", "p64")
+
+
+item=self.import_hashes[fname] 
+if item ~= nil and item.hash == fhash then return true end
+
+self:add_hash(fname, fhash)
+
+return false
+end
+
+sync.display_last_syncs=function(self)
+local when, diff, str
+local lines=0
+
+sync:load_hashes()
+
+for key, item in pairs(self.import_hashes)
+do
+when=time.tosecs("%Y-%m-%dT%H:%M:%S", item.when)
+
+str=""
+diff=(time.secs() - when)
+
+if diff > (3600 * 24 * 30) then str=str.."~er"
+elseif diff > (3600 * 24 * 7) then str=str.."~ey"
+elseif diff < (3600 * 24) then str=str.."~e"
+end
+
+str=str..item.when.."~0 "
+str=str..item.hash.."  "
+str=str..key.." "
+str=str.."\n"
+
+lines=lines+1
+Term:puts(str)
+end
+
+if lines == 0 then print("No sync file imports have been recorded.") end
+
+end
+
+
+
+sync.examine_import_file=function(self, path, password)
+local info
+
+-- this will only happen once, because it internally checks a flag
+-- to see if already loaded
+self:load_hashes()
+info=LockboxFromFile(path, password)
+
+if info ~= nil then info.already_loaded=self:check_hash(path)
+else ui:error("cant open sync file: "..tostring(path)) 
+end
+
+return info
+end
+
+
 
 
 
 
 sync.import_item=function(self, existing, new) 
 local exist_time, new_time
+local changed=false
 
 exist_time=time.tosecs("%Y/%m/%dT%H:%M:%S", existing.updated)
 new_time=time.tosecs("%Y/%m/%dT%H:%M:%S", new.updated)
@@ -636,53 +798,207 @@ if new_time > exist_time
 then
 existing.updated=new.updated
 existing.value=new.value
+changed=true
 end
 
+return changed
 end
+
+
 
 
 sync.import=function(self, box, other)
 local key, item
+local changed=false
 
 for key,item in pairs(other.items)
 do
-	existing=box.items[key]
-	if existing ~= nil then self:import_item(existing, item) 
-	else box.items[key]=item
-	end
+  existing=box.items[key]
+  if existing ~= nil then changed=self:import_item(existing, item) 
+  else
+     box.items[key]=item
+           changed=true
+  end
+end
+
+return changed
 end
 
 
-end
 
 
+
+
+
+
+
+-- import items to an EXISTING lockbox
 sync.update_box=function(self, box, path)
 local changed=false
 local tmp
 
 if GlobalDebug == true then io.stderr:write("sync:update_box '".. tostring(box.name) .. " from '" .. tostring(path) .. "' with password: '" .. tostring(box.password) .. "'\n") end
-tmp=self:load(path, box.password)
+
+tmp=self:examine_import_file(path)
 if tmp ~= nil
 then 
-  if strutil.strlen(box.password) == 0 then box.password=tmp.password end
-  if strutil.strlen(box.passhint) == 0 then box.passhint=tmp.passhint end
+    --if box already has a password, then use it
+    tmp.password=box.password
 
-  if hosts:check_version(tmp.machine_id, tmp.name, tmp.version)==true
-  then 
-    print("sync importing..." ..path)
-    self:import(box, tmp)
-    changed=true
+  if tmp.already_loaded == true then print("ignoring previously imported file '"..path.."'")
+  elseif tmp:load(false) == false then ui:error("Failed to decrypt import file. Wrong password?")
+  elseif hosts:check_version(tmp.machine_id, tmp.name, tmp.version) == false then print("import file has older version than lockbox '" .. box.name .. "'  ".. tostring(tmp.version) .." < "..tostring(box.version))
+  else
+      print("sync importing..." ..path)
+      if strutil.strlen(box.password) == 0 then box.password=tmp.password end
+      if strutil.strlen(box.passhint) == 0 then box.passhint=tmp.passhint end
+  
+      self:import(box, tmp)
+      changed=true
   end
-
   tmp:destroy()
+end
 
-  return(changed)
+return(changed)
+end
+
+
+
+-- for each EXISTING lockbox, try to find an import
+-- file that can be used to update it
+sync.update=function(self, box)
+local path, files, i, tmp
+local changed=false
+
+path=config:get("sync_in") .. "*-".. box.name .. ".sync"
+files=get_filelist(path)
+if GlobalDebug == true then io.stderr:write("update lockbox: '" .. box.name .. "' from '" .. tostring(path) .."' ".. tostring(#files) .. " files found.\n") end
+
+for i,path in ipairs(files)
+do
+changed=self:update_box(box, path)
+end
+
+
+if changed == true then box:save() 
+else 
+  if GlobalDebug == true then io.stderr:write("update lockbox: '" .. box.name .. "' lockbox unchanged. not saving.\n") end
+end
+
+
+return changed
+end
+
+
+-- for an EXISTING lockbox, with supplied name, do update
+sync.update_by_name=function(self, name)
+local box
+
+box=lockboxes:find(name)
+self:update(box)
+
+end
+
+
+
+
+sync.import_open_or_create=function(self, name, password, passhint)
+local box
+
+   box=lockboxes:find(name)
+   if box == nil 
+   then 
+     box=LockboxCreate(name, nil, password, passhint)
+     if box == nil then return nil,"unable to create lockbox" end
+   else
+     if box:load(false) == false
+     then
+      ui:error("incorrect password for destination lockbox")
+      box.password=ui:ask_password("Enter password for destination lockbox '"..box.name.."': ", box.passhint)
+      if box:load(false) == false then return nil, "incorrect password for destination lockbox, abandoning sync." end
+     end 
+   end
+
+return box
+end
+
+
+
+-- import a single file, use name of the imported file to
+-- update or create a lockbox for it, so here the destination box might not exist
+sync.import_file=function(self, path)
+local tmp, box
+
+-- we must open tmp file in order to get a 'trust worthy' name for it
+tmp=self:examine_import_file(path)
+if tmp == nil then return end
+
+-- always display this so the user knows what is happening and which lockbox is being dealt with
+print("sync from file '" .. tostring(path) .. "' to lockbox '" .. tmp.name .. "'") 
+ 
+if tmp.already_loaded == true then print("ignoring previously imported file '"..path.."'")
+elseif tmp:load(false) == false then ui:error("Failed to decrypt import file. Wrong password?")
+else
+  
+   
+   box,error=self:import_open_or_create(tmp.name, tmp.password, tmp.passhint)
+   
+   if box == nil 
+   then 
+   self:del_hash(path)
+   ui:error(error)
+   return false
+   end
+   
+--[[
+   if strutil.strlen(box.password) > 0 then tmp.password=box.password end
+   if strutil.strlen(box.passhint) > 0 then tmp.password=box.passhint end
+]]--
+   
+   if self:import(box, tmp) == true then box:save() 
+
+
 end
 end
 
 
+tmp:destroy()
+
+return true
+
+end
 
 
+-- import a bunch of files, use the name of the imported file to
+-- update or create a lockbox for it, so here the destination box might not exist
+sync.import_files=function(self, item_list)
+local i, result, error, toks, fname, fhash
+local glob, path
+
+self:load_hashes()
+
+if strutil.strlen(item_list) == 0 then item_list=config:get("sync_in") .. "/*.sync" end
+
+files=get_filelist(item_list)
+if GlobalDebug == true then io.stderr:write("sync from '" .. item_list .. "' " .. tostring(#files) .. " files found.") end
+
+print(tostring(#files) .. " sync files for import")
+
+for i, path in ipairs(files)
+do
+  self:import_file(path) 
+end
+
+
+self:save_hashes(import_hashes)
+
+end
+
+
+
+
+
+-- Functions below this point relate to exporting or 'sending' files
 
 sync.send_path=function(self, path, dir)
 local dst_path, final_path, name
@@ -702,8 +1018,8 @@ then
    final_path=dir.. sys.hostname() .. "-" .. name ..".sync"
 
    if string.sub(dir, 1, 4) == "ssh:" then SSHRunCommand("mv -f ", dst_path, final_path)
-	 else filesys.rename(dst_path, final_path)
-	 end
+   else filesys.rename(dst_path, final_path)
+   end
    
    print("send lockbox '" .. name .."' at '"..path.."' to '"..final_path.."'")
 end
@@ -718,68 +1034,6 @@ end
 
 
 
-
--- for each EXISTING lockbox, try to find an import
--- file that can be used to update it
-sync.update=function(self, box)
-local path, files, i, tmp
-local changed=false
-
-path=config:get("sync_in") .. "*-".. box.name .. ".sync"
-files=get_filelist(path)
-if GlobalDebug == true then io.stderr:write("update lockbox: '" .. box.name .. "' from '" .. tostring(path) .."' ".. tostring(#files) .. " files found.\n") end
-
-for i,path in ipairs(files)
-do
-tmp=LockboxFromFile(path)
-if tmp ~= nil
-then
-if strutil.strlen(box.password) > 0 then tmp.password=box.password end
-tmp:load(false)
-if self:import(box, tmp) then changed=true end
-end
-
-end
-
-if changed==true then box:save() 
-else 
-  if GlobalDebug == true then io.stderr:write("update lockbox: '" .. box.name .. "' lockbox unchanged. not saving.\n") end
-end
-
-
-return changed
-end
-
-
-sync.update_by_name=function(self, name)
-local box
-
-box=lockboxes:find(name)
-self:update(box)
-
-end
-
-
--- import a bunch of files, use the name of the imported file to
--- update or create a lockbox for it
-sync.import_items=function(self, item_list)
-local i, result, error, toks, str
-local glob, item
-
-if strutil.strlen(item_list) == 0 then item_list=config:get("sync_in") .. "/*.sync" end
-
-files=get_filelist(item_list)
-if GlobalDebug == true then io.stderr:write("sync from '" .. item_list .. "' " .. tostring(#files) .. " files found.") end
-
-for i, item in ipairs(files)
-do
-  result,error=lockboxes:sync(item) 
-  if result ~= true then ui:error(error) end
-end
-
-end
-
-
 sync.export_items=function(self, cmd)
 local list, dir
 
@@ -792,18 +1046,21 @@ then
     list=lockboxes:paths()
     for i,item in pairs(list)
     do
-	    self:send_path(item, dir)    
+      self:send_path(item, dir)    
     end
 else
-	self:send_path(cmd.box, cmd.dir)    
+  self:send_path(cmd.box, cmd.dir)    
 end
 
 end
-
 
 
 return sync
 end
+
+
+
+
 --[[
 This module relates to storing a version number for each lockbox on each host.
 using this we can detect if a lockbox should be imported or not
@@ -1043,7 +1300,7 @@ end
 
   if strutil.strlen(hint) > 0 then Term:puts("Password hint: "..hint.."\n") end
   str=Term:prompt(prefix .. prompt .. postfix, config:get("pass_hide"))
-  Term:puts("~0")
+  Term:puts("~0\n")
 
 return str
 end
@@ -1358,28 +1615,19 @@ local S
 local str=""
 local queried_password=false
 
-if GlobalNoSync ~= true and dosync ~= false then sync:update(self) end
-
 S=stream.STREAM(self.path, "r")
 if S ~= nil
 then
-self:read_info(S)
-if strutil.strlen(self.password) == 0 and config:get("keyring") == "y" 
-then 
-self.password=keyring:get(self.name) 
-if GlobalDebug == true then io.stderr:write("Using keyring: got "..tostring(self.password).."\n") end
-end
+    self:read_info(S)
+    if strutil.strlen(self.password) == 0 then self.password,self.password_needs_save=lockbox_passwords:get(self.name, self.passhint) end
 
-if strutil.strlen(self.password) == 0 
-then
-	self.password=ui:ask_password("Password for "..self.name..": ~>", self.passhint) 
-	queried_password=true
-end
+    str=self:readencrypted(S:readdoc())
+		if str ~= nil
+    then
+			if strutil.strlen(self.password) > 0 and config:get("keyring") ~= "n" then keyring:set(self.name, self.password) end
+    end
 
-str=self:readencrypted(S:readdoc())
-
-if queried_password == true and strutil.strlen(str) > 0 and config:get("keyring") ~= "n" then keyring:set(self.name, self.password) end
-S:close()
+    S:close()
 end
 
 return str
@@ -1387,22 +1635,17 @@ end
 
 
 
--- load without importing synced items
-lockbox.load_items=function(self, dosync)
+
+lockbox.load=function(self, dosync)
 local str
 
 str=self:read(dosync)
 if str==nil then return false end
 self:parse_items(str)
+
+if GlobalNoSync ~= true and dosync ~= false then sync:update(self) end
+
 return true
-end
-
-
-lockbox.load=function(self, dosync)
-local result
-
-result=self:load_items(dosync)
-return result 
 end
 
 
@@ -1580,45 +1823,17 @@ return false
 end
 
 
-lockboxes.read=function(self, boxname)
+lockboxes.read=function(self, boxname, dosync)
 local box
 local str=""
 
 box=self:find(boxname)
-if box ~= nil then str=box:read() end
+if box ~= nil then str=box:read(dosync) end
 
 return str
 end
 
 
-
-lockboxes.sync=function(self, path)
-local tmp, box, name
-
-if GlobalDebug == true then io.stderr:write("sync lockbox from '" .. path .. "'\n") end
-
-tmp=LockboxFromFile(path)
-if tmp == nil then return false,"cant open: "..tostring(path) end
-
-box=lockboxes:find(tmp.name)
-if box == nil
-then
- box=LockboxCreate(tmp.name, nil, tmp.password, tmp.passhint)
-else 
-  if box:load() == false then return false,"incorrect password" end
-end
-
-if box ~= nil
-then
-sync:update_box(box, path)
-box:save()
-ScrubFile(path)
-filesys.unlink(path)
-return true
-end
-
-return false,"unable to create lockbox"
-end
 
 
 
@@ -2466,6 +2681,7 @@ elseif cmd=="del" or cmd=="rm" or cmd=="remove" or cmd=="delete" then
  box:save(true)
 elseif cmd=="list" or cmd=="ls" then self:list(box, nil)
 elseif cmd=="find" then self:list(box, string.lower(toks:next()))
+elseif cmd=="import" then sync.update_box(box, toks:remaining())
 elseif cmd=="help"
 then
 print("list         - list entries in lockbox")
@@ -2479,6 +2695,7 @@ print("set  <key> <data> <notes>    - add a new entry, overwriting existing entr
 print("enter        - enter 'data entry' mode")
 print("rm   <key>   - remove an entry")
 print("del  <key>   - remove an entry")
+print("import <path>  - import a specific 'sync' file from '<path>'")
 else ui:error("Unrecognized command: ["..str.."]")
 end
 
@@ -2490,6 +2707,12 @@ end
 
 shell.run=function(self, cmd_line)
 local box, str, search, cmd
+
+if strutil.strlen(cmd_line.box) == 0 
+then
+  ui:error("no lockbox specified on command-line. 'shell' mode only works with a specified lockbox.")
+  return
+end
 
 box=lockboxes:find(cmd_line.box)
 if box ~= nil 
@@ -2549,6 +2772,7 @@ print("   sync [path]                             sync key/value pairs from a sy
 print("   sync [path] [path] ...                  sync key/value pairs from a sync or lockbox file(s). 'path' can be a pattern like '/home/user/incoming/*', or an ssh path like 'ssh:myserver/sync/treasury/*.sync'")
 print("   send [path] [dir]                       send lockbox at <path> to a directory <dir>for syncing")
 print("   send [dir]                              send all known lockboxes to a directory for syncing")
+print("   sync-status                             display last import of imported 'sync' files")
 print("   chpw [box]                              change password for a lockbox")
 print("   find [lockbox] [search pattern]         find key/value pairs matching 'search pattern'")
 print("   import [lockbox] [path]                 import key/value pairs from a file")
@@ -2586,7 +2810,7 @@ end
 
 
 Mode="cli"
-Version="1.14"
+Version="1.15"
 GlobalDebug=false
 GlobalNoSync=false
 
@@ -2639,7 +2863,7 @@ local box, item
 box=lockboxes:find(cmd.box)
 if box ~= nil
 then
-	if box:load() == true then box:save()
+	if box:load(true) == true then box:save()
 	else ui:error("incorrect password")
 	end
 else ui:error_no_lockbox(cmd.box)
@@ -2695,7 +2919,7 @@ end
 function DumpData(cmd)
 local str
 
-str=lockboxes:read(cmd.box)
+str=lockboxes:read(cmd.box, true)
 if str==nil then ui:error("incorrect password")
 -- use print not Term:puts to prevent interpretation of characters in the dump
 else print(str)
@@ -2724,7 +2948,7 @@ local box, item
 box=lockboxes:find(cmd.box)
 if box ~= nil
 then
-	if box:load() == true
+	if box:load(true) == true
 	then GetDataFromBox(box, cmd.key, cmd)
 	else ui:error("incorrect password")
 	end
@@ -2776,7 +3000,7 @@ local box, key, item, str
 box=lockboxes:find(cmd.box)
 if box ~= nil 
 then
-	box:load()
+	box:load(true)
 	for key,item in pairs(box.items)
 	do
 		if cmd.type == "names" then Term:puts(key.."\n")
@@ -2869,7 +3093,7 @@ elseif cmd.type == "get"  then GetData(cmd)
 elseif cmd.type == "entry" then EnterData(cmd)
 elseif cmd.type == "shell" then Shell(cmd)
 elseif cmd.type == "update" then sync:update_by_name(cmd.box)
-elseif cmd.type == "sync" then sync:import_items(cmd.items)
+elseif cmd.type == "sync" then sync:import_files(cmd.items)
 elseif cmd.type == "send" then sync:export_items(cmd)
 elseif cmd.type == "chpw" then ChangePassword(cmd)
 elseif cmd.type == "find"  then FindData(cmd)
@@ -2879,6 +3103,7 @@ elseif cmd.type == "push" then lockboxes:sync_push()
 elseif cmd.type == "show-config" then config:output()
 elseif cmd.type == "config-set" then config:change(arg[2], arg[3])
 elseif cmd.type == "rebuild" then Rebuild(cmd)
+elseif cmd.type == "sync-status" then sync:display_last_syncs()
 elseif cmd.type == "version" or cmd.type == "-version" or cmd.type == "--version" then print("treasury.lua "..Version)
 elseif cmd.type == "--help" or cmd.type == "-help" or cmd.type == "help" or cmd.type == "-?" then PrintHelp()
 else

@@ -29,6 +29,7 @@ print("   sync [path]                             sync key/value pairs from a sy
 print("   sync [path] [path] ...                  sync key/value pairs from a sync or lockbox file(s). 'path' can be a pattern like '/home/user/incoming/*', or an ssh path like 'ssh:myserver/sync/treasury/*.sync'")
 print("   send [path] [dir]                       send lockbox at <path> to a directory <dir>for syncing")
 print("   send [dir]                              send all known lockboxes to a directory for syncing")
+print("   sync-status                             display last import of imported 'sync' files")
 print("   chpw [box]                              change password for a lockbox")
 print("   find [lockbox] [search pattern]         find key/value pairs matching 'search pattern'")
 print("   import [lockbox] [path]                 import key/value pairs from a file")

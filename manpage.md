@@ -84,9 +84,6 @@ entry [lockbox]
 shell [lockbox]
 : enter "shell" mode for lockbox
 
-sync [path]
-: sync key/value pairs from a lockbox file
-
 chpw [box]
 : change password for a lockbox
 
@@ -113,6 +110,9 @@ send [path] [dir]
 
 send [dir]
 : send all known lockboxes to a directory <dir> for syncing. <dir> can be an ssh: url to a directory on another system
+
+sync-status
+: display details of last imports of 'sync' files
 
 import [lockbox] [path]
 :         import key/value pairs from a file
